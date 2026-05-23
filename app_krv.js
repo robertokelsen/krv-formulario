@@ -112,25 +112,72 @@ function criarComprador(primeiro=false){
       <div class="field"><label>WhatsApp <span class="req">*</span> <span class="hint">(recebe link)</span></label><input type="text" data-f="whatsapp" class="mask-tel" placeholder="(85) 99999-9999" required></div>
       <div class="field"><label>E-mail <span class="req">*</span> <span class="hint">(cadastro D4Sign)</span></label><input type="email" data-f="email" required></div>
       ${primeiro ? '' : '<div class="field full checkrow"><input type="checkbox" data-f="mesmo_end" id="mesmoEnd'+idx+'"><label for="mesmoEnd'+idx+'" style="font-weight:400;">Mesmo endereço do Comprador 1</label></div>'}
-      <div class="field full" data-end-wrap><label>Endereço completo <span class="req">*</span> <span class="hint">(rua, nº, bairro, cidade/UF, CEP)</span></label><input type="text" data-f="endereco" required></div>
-    </div>`;
+      <div class="field full" data-end-wrap>
+        <div class="sub-grid">
+          <div class="field"><label>CEP <span class="req">*</span></label><input type="text" data-f="cep" class="mask-cep" placeholder="00000-000" required><span class="hint" data-cep-status></span></div>
+          <div class="field"><label>Número <span class="req">*</span></label><input type="text" data-f="numero" placeholder="nº" required></div>
+          <div class="field full"><label>Rua <span class="req">*</span></label><input type="text" data-f="rua" required></div>
+          <div class="field"><label>Bairro <span class="req">*</span></label><input type="text" data-f="bairro" required></div>
+          <div class="field"><label>Cidade/UF <span class="req">*</span></label><input type="text" data-f="cidade" required></div>
+          <div class="field full"><label>Complemento <span class="hint">(opcional)</span></label><input type="text" data-f="complemento" placeholder="apto, bloco, ponto de referência"></div>
+        </div>
+      </div>`;
   compradoresContainer.appendChild(div);
 
   // máscaras
   div.querySelector('.mask-cpf').addEventListener('input', e => e.target.value = maskCPFval(e.target.value));
   div.querySelector('.mask-tel').addEventListener('input', e => e.target.value = maskTelVal(e.target.value));
 
+  // ---- CEP: máscara + autopreenchimento via ViaCEP ----
+  const cepInput = div.querySelector('.mask-cep');
+  const cepStatus = div.querySelector('[data-cep-status]');
+  cepInput.addEventListener('input', e => {
+    let v = e.target.value.replace(/\D/g,'').slice(0,8);
+    if(v.length>5) v = v.slice(0,5)+'-'+v.slice(5);
+    e.target.value = v;
+    if(v.replace(/\D/g,'').length === 8) buscarCEP(div, v, cepStatus);
+  });
+
   // checkbox mesmo endereço
   const chk = div.querySelector('[data-f="mesmo_end"]');
   if(chk){
     chk.addEventListener('change', () => {
       const endWrap = div.querySelector('[data-end-wrap]');
-      const endInput = div.querySelector('[data-f="endereco"]');
       if(chk.checked){
-        const end1 = compradoresContainer.querySelector('[data-comprador="1"] [data-f="endereco"]').value;
-        endInput.value = end1; endWrap.style.display='none';
+        const c1 = compradoresContainer.querySelector('[data-comprador="1"]');
+        ['cep','numero','rua','bairro','cidade','complemento'].forEach(f=>{
+          const orig = c1.querySelector(`[data-f="${f}"]`);
+          const dest = div.querySelector(`[data-f="${f}"]`);
+          if(orig && dest) dest.value = orig.value;
+        });
+        endWrap.style.display='none';
       } else { endWrap.style.display='block'; }
     });
+  }
+}
+
+// ---- Busca CEP via ViaCEP e autopreenche ----
+async function buscarCEP(div, cep, statusEl){
+  const limpo = cep.replace(/\D/g,'');
+  if(limpo.length !== 8) return;
+  if(statusEl) statusEl.textContent = 'buscando…';
+  try{
+    const resp = await fetch(`https://viacep.com.br/ws/${limpo}/json/`);
+    const d = await resp.json();
+    if(d.erro){
+      if(statusEl) statusEl.textContent = 'CEP não encontrado';
+      return;
+    }
+    const setF = (f,v)=>{ const el=div.querySelector(`[data-f="${f}"]`); if(el && v) el.value = v; };
+    setF('rua', d.logradouro);
+    setF('bairro', d.bairro);
+    setF('cidade', d.localidade && d.uf ? `${d.localidade}/${d.uf}` : '');
+    if(statusEl) statusEl.textContent = '✓';
+    // foca no número, que é o que falta digitar
+    const numEl = div.querySelector('[data-f="numero"]');
+    if(numEl) numEl.focus();
+  }catch(e){
+    if(statusEl) statusEl.textContent = 'erro ao buscar';
   }
 }
 window.removerComprador = function(idx){
@@ -313,16 +360,33 @@ document.getElementById('backStep1').addEventListener('click', () => {
 
 // ---- ETAPA 2 → gera contrato ----
 document.getElementById('submitBtn').addEventListener('click', async () => {
+  const btnSubmit = document.getElementById('submitBtn');
+  // PROTEÇÃO ANTI-DUPLICAÇÃO: se já está enviando, ignora cliques extras
+  if (btnSubmit.dataset.enviando === '1') return;
+
   const erros = [];
 
   // valida compradores
   const compradores = [];
   compradoresContainer.querySelectorAll('.sub-card').forEach((card, i) => {
     const get = f => { const el=card.querySelector(`[data-f="${f}"]`); return el?el.value.trim():''; };
+    // monta endereço completo a partir dos campos
+    const rua = get('rua'), numero = get('numero'), bairro = get('bairro'),
+          cidade = get('cidade'), cep = get('cep'), complemento = get('complemento');
+    let endereco = rua;
+    if(numero) endereco += ', nº ' + numero;
+    if(complemento) endereco += ', ' + complemento;
+    if(bairro) endereco += ', ' + bairro;
+    if(cidade) endereco += ', ' + cidade;
+    if(cep) endereco += ', CEP ' + cep;
+
     const c = {
       nome: get('nome'), cpf: get('cpf'), nacionalidade: get('nacionalidade'),
       estado_civil: get('estado_civil'), profissao: get('profissao'),
-      whatsapp: get('whatsapp'), email: get('email'), endereco: get('endereco')
+      whatsapp: get('whatsapp'), email: get('email'),
+      endereco: endereco,
+      // também envia os campos separados, caso o contrato queira usar
+      cep, rua, numero, bairro, cidade, complemento
     };
     // valida campos
     if(!c.nome) erros.push(`Comprador ${i+1}: nome obrigatório`);
@@ -331,7 +395,9 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     if(!c.profissao) erros.push(`Comprador ${i+1}: profissão obrigatória`);
     if(!validarTel(c.whatsapp)) erros.push(`Comprador ${i+1}: WhatsApp inválido`);
     if(!validarEmail(c.email)) erros.push(`Comprador ${i+1}: e-mail inválido`);
-    if(!c.endereco) erros.push(`Comprador ${i+1}: endereço obrigatório`);
+    if(!cep) erros.push(`Comprador ${i+1}: CEP obrigatório`);
+    if(!rua) erros.push(`Comprador ${i+1}: rua obrigatória (preencha o CEP)`);
+    if(!numero) erros.push(`Comprador ${i+1}: número obrigatório`);
     compradores.push(c);
   });
   if(compradores.length === 0) erros.push('Adicione ao menos 1 comprador');
@@ -380,16 +446,23 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     origem: 'site-krv', timestamp: new Date().toISOString()
   };
 
+  // trava o botão a partir daqui (já passou nas validações)
+  btnSubmit.dataset.enviando = '1';
+  btnSubmit.disabled = true;
+
   showModal(`<div class="spin"></div><h3>Gerando contrato…</h3><p>Criando documento, enviando ao D4Sign e disparando os links no WhatsApp.</p>`);
   try{
     const resp = await fetch(WEBHOOK_CONTRATO, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(resp.ok){
       showModal(`<div class="icon">✅</div><h3>Contrato enviado!</h3><p>Documento gerado e enviado ao D4Sign. Os compradores e o corretor receberam o link de assinatura no WhatsApp e no e-mail.</p><button class="btn-primary" onclick="location.reload()">Nova venda</button>`);
+      // mantém travado — usuário recarrega para nova venda
     } else {
       const t=await resp.text();
       showModal(`<div class="icon">⚠️</div><h3>Erro no envio</h3><ul class="errlist"><li>${t.slice(0,250)}</li></ul><button class="btn-primary" onclick="document.getElementById('overlay').classList.remove('show')">Voltar</button>`);
+      btnSubmit.dataset.enviando = '0'; btnSubmit.disabled = false; // libera para tentar de novo
     }
   }catch(e){
     showModal(`<div class="icon">❌</div><h3>Falha de conexão</h3><p>Não foi possível contatar o servidor.</p><button class="btn-primary" onclick="document.getElementById('overlay').classList.remove('show')">Voltar</button>`);
+    btnSubmit.dataset.enviando = '0'; btnSubmit.disabled = false; // libera para tentar de novo
   }
 });
