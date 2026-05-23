@@ -302,9 +302,9 @@ document.getElementById('revisarIA').addEventListener('click', async () => {
 function showModal(html){ document.getElementById('modal').innerHTML=html; document.getElementById('overlay').classList.add('show'); }
 function hideModal(){ document.getElementById('overlay').classList.remove('show'); }
 
-// ---- ETAPA 1 → cria grupo ----
+// ---- ETAPA 1 → só valida e avança (NÃO cria grupo) ----
 const etapa1 = ['empreendimento','corretor_nome','corretor_whatsapp','corretor_email','bloco','unidade_numero','cliente_nome_grupo'];
-document.getElementById('createGroupBtn').addEventListener('click', async () => {
+document.getElementById('createGroupBtn').addEventListener('click', () => {
   let ok=true;
   etapa1.forEach(id=>{ const el=document.getElementById(id); const v=el.value.trim();
     if(!v){ setErr(el,'Obrigatório'); ok=false; }
@@ -313,6 +313,25 @@ document.getElementById('createGroupBtn').addEventListener('click', async () => 
     else clearErr(el);
   });
   if(!ok) return;
+
+  const emp = EMPREENDIMENTOS[selEmp.value];
+  const bloco = selBloco.value, unidade = selUnidade.value;
+  // avança para o Passo 2
+  document.getElementById('panel1').classList.remove('active');
+  document.getElementById('panel2').classList.add('active');
+  document.getElementById('pill1').classList.replace('active','done');
+  document.getElementById('pill2').classList.add('active');
+  document.getElementById('resumoUnidade').textContent = `${emp.nome} — Bloco ${bloco}, UN ${unidade}`;
+  window.scrollTo({top:0,behavior:'smooth'});
+});
+
+// ---- PASSO 2: botão CRIAR GRUPO ----
+document.getElementById('createGroupBtn2').addEventListener('click', async () => {
+  const btnGrupo = document.getElementById('createGroupBtn2');
+  const btnContrato = document.getElementById('submitBtn');
+
+  // se já criou, não cria de novo
+  if(venda.groupJid){ showModal(`<div class="icon">✓</div><h3>Grupo já criado</h3><p>O grupo já foi criado. Pode gerar o contrato.</p><button class="btn-primary" onclick="hideModal()">Ok</button>`); return; }
 
   const emp = EMPREENDIMENTOS[selEmp.value];
   const bloco = selBloco.value, unidade = selUnidade.value;
@@ -328,6 +347,7 @@ document.getElementById('createGroupBtn').addEventListener('click', async () => 
     bloco, unidade_numero: unidade, tipologia_tipo: tipo?TIPOLOGIAS[tipo].nome:''
   };
 
+  btnGrupo.disabled = true;
   showModal(`<div class="spin"></div><h3>Criando grupo…</h3><p>Montando o grupo no WhatsApp com o corretor e a KRV.</p>`);
   try{
     const resp = await fetch(WEBHOOK_GRUPO, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
@@ -335,18 +355,18 @@ document.getElementById('createGroupBtn').addEventListener('click', async () => 
       const data = await resp.json().catch(()=>({}));
       venda.groupJid = (data.data && data.data.id) || data.groupJid || data.id || null;
       hideModal();
-      document.getElementById('panel1').classList.remove('active');
-      document.getElementById('panel2').classList.add('active');
-      document.getElementById('pill1').classList.replace('active','done');
-      document.getElementById('pill2').classList.add('active');
-      document.getElementById('resumoUnidade').textContent = `${emp.nome} — Bloco ${bloco}, UN ${unidade}`;
-      window.scrollTo({top:0,behavior:'smooth'});
+      // grupo criado: trava o botão de grupo e libera o de contrato
+      btnGrupo.textContent = '✓ Grupo criado';
+      btnGrupo.classList.remove('btn-primary'); btnGrupo.classList.add('btn-ghost');
+      btnContrato.disabled = false;
     } else {
       const t=await resp.text();
-      showModal(`<div class="icon">⚠️</div><h3>Erro ao criar grupo</h3><ul class="errlist"><li>${t.slice(0,200)}</li></ul><button class="btn-primary" onclick="document.getElementById('overlay').classList.remove('show')">Voltar</button>`);
+      btnGrupo.disabled = false;
+      showModal(`<div class="icon">⚠️</div><h3>Erro ao criar grupo</h3><ul class="errlist"><li>${t.slice(0,200)}</li></ul><button class="btn-primary" onclick="hideModal()">Voltar</button>`);
     }
   }catch(e){
-    showModal(`<div class="icon">❌</div><h3>Falha de conexão</h3><p>Não foi possível criar o grupo.</p><button class="btn-primary" onclick="document.getElementById('overlay').classList.remove('show')">Voltar</button>`);
+    btnGrupo.disabled = false;
+    showModal(`<div class="icon">❌</div><h3>Falha de conexão</h3><p>Não foi possível criar o grupo.</p><button class="btn-primary" onclick="hideModal()">Voltar</button>`);
   }
 });
 
@@ -363,6 +383,12 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
   const btnSubmit = document.getElementById('submitBtn');
   // PROTEÇÃO ANTI-DUPLICAÇÃO: se já está enviando, ignora cliques extras
   if (btnSubmit.dataset.enviando === '1') return;
+
+  // exige grupo criado antes de gerar contrato
+  if (!venda.groupJid) {
+    showModal(`<div class="icon">⚠️</div><h3>Crie o grupo primeiro</h3><p>Antes de gerar o contrato, clique em "Criar grupo no WhatsApp".</p><button class="btn-primary" onclick="hideModal()">Ok</button>`);
+    return;
+  }
 
   const erros = [];
 
