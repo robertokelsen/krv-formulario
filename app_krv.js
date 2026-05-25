@@ -3,8 +3,8 @@
 // ============================================================
 
 // ---- CONFIG: ajuste os webhooks ----
-const WEBHOOK_GRUPO = 'https://n8n.larke.com.br/webhook/criar-grupo-paco';
-const WEBHOOK_CONTRATO = 'https://n8n.larke.com.br/webhook/nova-venda-paco';
+const WEBHOOK_GRUPO = 'https://n8n.larke.com.br/webhook/criar-grupo';
+const WEBHOOK_CONTRATO = 'https://n8n.larke.com.br/webhook/nova-venda';
 const WEBHOOK_IA = 'https://n8n.larke.com.br/webhook/revisar-ia'; // opcional
 
 // ---- CONFIG DOS EMPREENDIMENTOS ----
@@ -371,7 +371,7 @@ document.getElementById('createGroupBtn2').addEventListener('click', async () =>
     }
   }catch(e){
     btnGrupo.disabled = false;
-    showModal(`<div class="icon">❌</div><h3>Falha de conexão</h3><p>Não foi possível criar o grupo.</p><button class="btn-primary" onclick="hideModal()">Voltar</button>`);
+    showModal(`<div class="icon">❌</div><h3>Falha de conexão</h3><p>Não foi possível criar o grupo.</p><p style="font-size:12px;color:#888;margin-top:8px">Detalhe técnico: ${e.message||e}</p><p style="font-size:12px;color:#888">Webhook: ${WEBHOOK_GRUPO}</p><button class="btn-primary" onclick="hideModal()">Voltar</button>`);
   }
 });
 
