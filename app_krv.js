@@ -4,7 +4,7 @@
 
 // ---- CONFIG: ajuste os webhooks ----
 const WEBHOOK_GRUPO = 'https://n8n.larke.com.br/webhook/criar-grupo';
-const WEBHOOK_CONTRATO = 'https://n8n.larke.com.br/webhook/nova-venda';
+const WEBHOOK_CONTRATO = 'https://n8n.larke.com.br/webhook/nova-venda-paco';
 const WEBHOOK_IA = 'https://n8n.larke.com.br/webhook/revisar-ia'; // opcional
 
 // ---- CONFIG DOS EMPREENDIMENTOS ----
