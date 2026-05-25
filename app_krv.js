@@ -192,6 +192,89 @@ window.removerComprador = function(idx){
 document.getElementById('addComprador').addEventListener('click', () => criarComprador(false));
 criarComprador(true); // primeiro comprador
 
+// ==== DADOS FICTÍCIOS PARA TESTE ====
+function gerarCPFvalido(){
+  const n = Array.from({length:9}, ()=>Math.floor(Math.random()*10));
+  let s=0; for(let i=0;i<9;i++) s+=n[i]*(10-i);
+  let d1=(s*10)%11; if(d1===10) d1=0; n.push(d1);
+  s=0; for(let i=0;i<10;i++) s+=n[i]*(11-i);
+  let d2=(s*10)%11; if(d2===10) d2=0; n.push(d2);
+  return n.join('');
+}
+function rnd(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function gerarTel(){ return '(85) 9'+(Math.floor(1000+Math.random()*9000))+'-'+(Math.floor(1000+Math.random()*9000)); }
+function disparar(el,ev){ el.dispatchEvent(new Event(ev,{bubbles:true})); }
+
+const FAKE = {
+  nomes:['Pedro Henrique Silva Sales','Maria Clara Souza Lima','João Vitor Almeida','Ana Beatriz Costa','Lucas Gabriel Ferreira','Mariana Oliveira Rocha','Rafael Santos Mota','Juliana Pereira Dias','Carlos Eduardo Nunes','Fernanda Ribeiro Gomes'],
+  profissoes:['Engenheiro','Professora','Médico','Advogada','Comerciante','Analista','Enfermeira','Vendedor','Contadora','Autônomo'],
+  corretores:['Messias Oliveira','Caio Gomes','Aldenilson Dutra','Trend Imob','Elite Imobiliária','Marca Imóveis'],
+  ruas:['Rua das Flores','Av. Brasil','Rua João Pessoa','Av. dos Expedicionários','Rua Castro Alves'],
+  bairros:['Centro','Jereissati','Luzardo Viana','Pajuçara','Maracananzinho'],
+  estados_civis:['solteiro(a)','casado(a)','divorciado(a)','união estável']
+};
+
+function preencherComprador(card){
+  const set=(f,v)=>{ const el=card.querySelector(`[data-f="${f}"]`); if(!el) return; el.value=v; disparar(el,'input'); disparar(el,'change'); };
+  const nome = rnd(FAKE.nomes);
+  const primeiroEmail = nome.toLowerCase().split(' ')[0]+Math.floor(Math.random()*900);
+  set('nome', nome);
+  set('cpf', maskCPFval(gerarCPFvalido()));
+  set('estado_civil', rnd(FAKE.estados_civis));
+  set('profissao', rnd(FAKE.profissoes));
+  set('whatsapp', gerarTel());
+  set('email', primeiroEmail+'@teste.com');
+  // endereço (preenche direto, sem depender do ViaCEP)
+  set('cep','60000-000');
+  set('numero', String(Math.floor(100+Math.random()*900)));
+  set('rua', rnd(FAKE.ruas));
+  set('bairro', rnd(FAKE.bairros));
+  set('cidade','Maracanaú/CE');
+}
+
+document.getElementById('fillFakeBtn').addEventListener('click', () => {
+  // 1. empreendimento aleatório → dispara change (popula blocos)
+  const emps = Object.keys(EMPREENDIMENTOS);
+  selEmp.value = rnd(emps);
+  disparar(selEmp,'change');
+
+  // 2. bloco aleatório → dispara change (popula unidades)
+  const cfg = EMPREENDIMENTOS[selEmp.value];
+  selBloco.value = rnd(cfg.blocos);
+  disparar(selBloco,'change');
+
+  // 3. unidade aleatória (entre as opções já populadas)
+  const opts = Array.from(selUnidade.options).filter(o=>o.value);
+  if(opts.length){ selUnidade.value = rnd(opts).value; disparar(selUnidade,'change'); }
+
+  // 4. corretor
+  const corr = rnd(FAKE.nomes);
+  document.getElementById('corretor_nome').value = rnd(FAKE.corretores);
+  document.getElementById('corretor_whatsapp').value = gerarTel();
+  document.getElementById('corretor_email').value = 'corretor'+Math.floor(Math.random()*900)+'@teste.com';
+  document.getElementById('corretor_creci').value = String(Math.floor(10000+Math.random()*90000))+'-F';
+
+  // 5. compradores existentes
+  compradoresContainer.querySelectorAll('.sub-card').forEach(preencherComprador);
+
+  // 6. valores de pagamento
+  const total = 250000 + Math.floor(Math.random()*40)*1000;
+  const sinal = 20000;
+  const parcelar = total - sinal;
+  const setVal = (id,v)=>{ const el=document.getElementById(id); if(el){ el.value=v; disparar(el,'input'); } };
+  setVal('valor_total', total.toLocaleString('pt-BR',{minimumFractionDigits:2}));
+  setVal('valor_sinal', sinal.toLocaleString('pt-BR',{minimumFractionDigits:2}));
+  // ativa parcelamento (PRICE) e preenche
+  const chipParc = document.querySelector('.pay-chip[data-comp="parcelamento"]');
+  if(chipParc && !chipParc.classList.contains('on')) chipParc.click();
+  setVal('valor_parcelamento', parcelar.toLocaleString('pt-BR',{minimumFractionDigits:2}));
+  setVal('qtd_parcelas', '60');
+
+  showModal(`<div class="icon">🎲</div><h3>Dados de teste preenchidos</h3><p>Empreendimento, corretor, unidade e compradores foram preenchidos com dados fictícios. Revise e teste o fluxo.</p><button class="btn-primary" onclick="hideModal()">Ok</button>`);
+});
+// ==== FIM DADOS FICTÍCIOS ====
+
+
 // ---- TOGGLES de pagamento ----
 document.querySelectorAll('.pay-chip').forEach(chip => {
   chip.addEventListener('click', () => {
@@ -308,8 +391,10 @@ function showModal(html){ document.getElementById('modal').innerHTML=html; docum
 function hideModal(){ document.getElementById('overlay').classList.remove('show'); }
 
 // ---- ETAPA 1 → só valida e avança (NÃO cria grupo) ----
-const etapa1 = ['empreendimento','corretor_nome','corretor_whatsapp','corretor_email','bloco','unidade_numero','cliente_nome_grupo'];
-document.getElementById('createGroupBtn').addEventListener('click', () => {
+const etapa1 = ['empreendimento','corretor_nome','corretor_whatsapp','corretor_email','bloco','unidade_numero'];
+
+// valida os campos de identificação (empreendimento/corretor/unidade/cliente)
+function validarIdentificacao(){
   let ok=true;
   etapa1.forEach(id=>{ const el=document.getElementById(id); const v=el.value.trim();
     if(!v){ setErr(el,'Obrigatório'); ok=false; }
@@ -317,20 +402,10 @@ document.getElementById('createGroupBtn').addEventListener('click', () => {
     else if(id==='corretor_email' && !validarEmail(v)){ setErr(el,'E-mail inválido'); ok=false; }
     else clearErr(el);
   });
-  if(!ok) return;
+  return ok;
+}
 
-  const emp = EMPREENDIMENTOS[selEmp.value];
-  const bloco = selBloco.value, unidade = selUnidade.value;
-  // avança para o Passo 2
-  document.getElementById('panel1').classList.remove('active');
-  document.getElementById('panel2').classList.add('active');
-  document.getElementById('pill1').classList.replace('active','done');
-  document.getElementById('pill2').classList.add('active');
-  document.getElementById('resumoUnidade').textContent = `${emp.nome} — Bloco ${bloco}, UN ${unidade}`;
-  window.scrollTo({top:0,behavior:'smooth'});
-});
-
-// ---- PASSO 2: botão CRIAR GRUPO ----
+// ---- botão CRIAR GRUPO ----
 document.getElementById('createGroupBtn2').addEventListener('click', async () => {
   const btnGrupo = document.getElementById('createGroupBtn2');
   const btnContrato = document.getElementById('submitBtn');
@@ -338,10 +413,24 @@ document.getElementById('createGroupBtn2').addEventListener('click', async () =>
   // se já criou, não cria de novo
   if(venda.groupJid){ showModal(`<div class="icon">✓</div><h3>Grupo já criado</h3><p>O grupo já foi criado. Pode gerar o contrato.</p><button class="btn-primary" onclick="hideModal()">Ok</button>`); return; }
 
+  // valida os campos de identificação antes de criar o grupo
+  if(!validarIdentificacao()){
+    showModal(`<div class="icon">⚠️</div><h3>Campos obrigatórios</h3><p>Preencha o empreendimento, o corretor e a unidade antes de criar o grupo.</p><button class="btn-primary" onclick="hideModal()">Ok</button>`);
+    window.scrollTo({top:0,behavior:'smooth'});
+    return;
+  }
+
+  // nome do grupo usa o nome do PRIMEIRO COMPRADOR
+  const primeiroCard = compradoresContainer.querySelector('.sub-card');
+  const clienteNome = primeiroCard ? (primeiroCard.querySelector('[data-f="nome"]').value.trim()) : '';
+  if(!clienteNome){
+    showModal(`<div class="icon">⚠️</div><h3>Informe o comprador</h3><p>Preencha ao menos o <b>nome do Comprador 1</b> antes de criar o grupo — é ele que nomeia o grupo.</p><button class="btn-primary" onclick="hideModal()">Ok</button>`);
+    return;
+  }
+
   const emp = EMPREENDIMENTOS[selEmp.value];
   const bloco = selBloco.value, unidade = selUnidade.value;
   const tipo = tipologiaDe(selEmp.value, unidade);
-  const clienteNome = document.getElementById('cliente_nome_grupo').value.trim();
   venda.nome_grupo = `${emp.prefixo_grupo} - ${unidade} - ${bloco} - ${clienteNome.split(' ')[0].toUpperCase()}`;
 
   const payload = {
@@ -373,14 +462,6 @@ document.getElementById('createGroupBtn2').addEventListener('click', async () =>
     btnGrupo.disabled = false;
     showModal(`<div class="icon">❌</div><h3>Falha de conexão</h3><p>Não foi possível criar o grupo.</p><p style="font-size:12px;color:#888;margin-top:8px">Detalhe técnico: ${e.message||e}</p><p style="font-size:12px;color:#888">Webhook: ${WEBHOOK_GRUPO}</p><button class="btn-primary" onclick="hideModal()">Voltar</button>`);
   }
-});
-
-document.getElementById('backStep1').addEventListener('click', () => {
-  document.getElementById('panel2').classList.remove('active');
-  document.getElementById('panel1').classList.add('active');
-  document.getElementById('pill2').classList.remove('active');
-  document.getElementById('pill1').classList.replace('done','active');
-  window.scrollTo({top:0,behavior:'smooth'});
 });
 
 // ---- ETAPA 2 → gera contrato ----
