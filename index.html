@@ -72,6 +72,8 @@
   .btn-primary:disabled{background:var(--line);color:var(--muted);cursor:not-allowed;transform:none;box-shadow:none;}
   .btn-ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line);}
   .btn-ghost:hover{border-color:var(--ink);}
+  .btn-fake{margin-top:12px;background:#fff4e0;color:#9a6700;border:1.5px dashed #d9a441;font-size:13px;padding:8px 16px;border-radius:8px;}
+  .btn-fake:hover{background:#ffe9c2;}
   .btn-add{background:rgba(59,93,58,.1);color:var(--moss-deep);border:1.5px dashed var(--moss);font-size:14px;padding:10px 18px;}
   .btn-add:hover{background:rgba(59,93,58,.18);}
   .btn-sm{padding:7px 14px;font-size:13px;}
@@ -122,17 +124,12 @@
     <div><h1>KRV Engenharia</h1><p id="brandSub">Geração de Contrato</p></div>
   </header>
 
-  <div class="steps">
-    <div class="step-pill active" id="pill1"><span class="step-num">1</span> Empreendimento &amp; Grupo</div>
-    <div class="step-pill" id="pill2"><span class="step-num">2</span> Compradores &amp; Pagamento</div>
-  </div>
-
   <div class="card">
-    <!-- ETAPA 1 -->
     <div class="panel active" id="panel1">
       <div class="panel-head">
-        <h2>Empreendimento e corretor</h2>
-        <p>Escolha o empreendimento, o corretor e a <span class="accent">unidade de interesse</span>.</p>
+        <h2>Nova venda</h2>
+        <p>Preencha o empreendimento, o corretor, a unidade, os compradores e as condições. Depois <span class="accent">crie o grupo</span> e <span class="accent">gere o contrato</span>.</p>
+        <button type="button" id="fillFakeBtn" class="btn-fake">🎲 Preencher dados de teste</button>
       </div>
       <div class="grid">
         <div class="section-label">Empreendimento</div>
@@ -190,25 +187,6 @@
           <span class="field-err">Obrigatório</span>
         </div>
         <div class="tipologia-badge" id="tipoBadge"></div>
-        <div class="field full">
-          <label>Nome do cliente <span class="req">*</span> <span class="hint">(aparece no nome do grupo)</span></label>
-          <input type="text" id="cliente_nome_grupo" placeholder="Pedro Henrique" required>
-          <span class="field-err">Obrigatório</span>
-        </div>
-      </div>
-      <div class="actions">
-        <span></span>
-        <button class="btn-primary" id="createGroupBtn">Continuar &rarr;</button>
-      </div>
-    </div>
-
-    <!-- ETAPA 2 -->
-    <div class="panel" id="panel2">
-      <div class="panel-head">
-        <h2>Compradores e pagamento</h2>
-        <p>Unidade <span class="accent" id="resumoUnidade">—</span>. Adicione os compradores, monte as condições, crie o grupo e gere o contrato.</p>
-      </div>
-      <div class="grid">
 
         <div class="section-label">Compradores <span class="opt">mín. 1</span></div>
         <div id="compradoresContainer"></div>
@@ -306,7 +284,7 @@
 
       </div>
       <div class="actions">
-        <button class="btn-ghost" id="backStep1">&larr; Voltar</button>
+        <span></span>
         <button class="btn-primary" id="createGroupBtn2">Criar grupo no WhatsApp</button>
         <button class="btn-primary" id="submitBtn" disabled>Gerar contrato &amp; enviar</button>
       </div>
