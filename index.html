@@ -83,6 +83,7 @@
   .sub-card-head h4{font-family:'Fraunces',serif;font-size:15px;color:var(--moss-deep);}
   .sub-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;}
   .sub-grid .full{grid-column:1/-1;}
+  .tri-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px 14px;}
   .checkrow{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);}
   .checkrow input{width:auto;}
   /* toggle de componentes de pagamento */
@@ -111,7 +112,7 @@
   .modal p{color:var(--muted);font-size:14px;margin-bottom:18px;}
   .modal .errlist{text-align:left;background:#fdf3f2;border-radius:9px;padding:12px 16px;margin-bottom:18px;}
   .modal .errlist li{font-size:13px;color:var(--error);margin-left:16px;}
-  @media (max-width:640px){.grid,.sub-grid{grid-template-columns:1fr;}.steps{flex-direction:column;}.card{padding:22px;}}
+  @media (max-width:640px){.grid,.sub-grid,.tri-grid{grid-template-columns:1fr;}.steps{flex-direction:column;}.card{padding:22px;}}
 </style>
 </head>
 <body>
@@ -161,6 +162,20 @@
           <label>E-mail do corretor <span class="req">*</span> <span class="hint">(assina como testemunha)</span></label>
           <input type="email" id="corretor_email" required>
           <span class="field-err">E-mail inválido</span>
+        </div>
+        <div class="tri-grid">
+          <div class="field">
+            <label>CRECI do corretor <span class="hint">(opcional)</span></label>
+            <input type="text" id="corretor_creci" placeholder="ex: 12345-F">
+          </div>
+          <div class="field">
+            <label>Nome da imobiliária <span class="hint">(opcional)</span></label>
+            <input type="text" id="imobiliaria_nome" placeholder="ex: Imobiliária X">
+          </div>
+          <div class="field">
+            <label>CRECI da imobiliária <span class="hint">(opcional)</span></label>
+            <input type="text" id="imobiliaria_creci" placeholder="ex: J-6789">
+          </div>
         </div>
 
         <div class="section-label">Unidade de interesse</div>
@@ -240,7 +255,7 @@
           <div class="sub-grid">
             <div class="field"><label>Valor a parcelar (PRICE)</label><input type="text" id="valor_parcelamento" placeholder="36.590,50" inputmode="decimal"></div>
             <div class="field"><label>Nº de parcelas</label><input type="number" id="qtd_parcelas" placeholder="40" min="1"></div>
-            <div class="field"><label>Taxa mensal (%) <span class="hint">padrão 1,7</span></label><input type="text" id="taxa_mensal" value="1,7" inputmode="decimal"></div>
+            <div class="field"><label>Taxa mensal (%) <span class="hint" id="taxaHint">conforme empreendimento</span></label><input type="text" id="taxa_mensal" value="1,7" inputmode="decimal"></div>
             <div class="field"><label>Valor da parcela <span class="hint">(auto ou manual)</span></label><input type="text" id="valor_parcela_manual" placeholder="calcular automático" inputmode="decimal"></div>
           </div>
           <div class="price-result" id="priceResult" style="display:none;">
