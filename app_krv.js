@@ -12,12 +12,12 @@ const EMPREENDIMENTOS = {
   paco_aguas: {
     nome: "Paço das Águas", matricula: "5480", previsao_entrega: "dezembro de 2027",
     blocos: ["A","B","C","D","E"], pavimentos: 4, unidades_por_pavimento: 8,
-    tres_quartos: [1,4,5,8], prefixo_grupo: "PACO AGUAS"
+    tres_quartos: [1,4,5,8], prefixo_grupo: "PAÇO", taxa_price: "1,4"
   },
   gran_royal: {
     nome: "Gran Royal", matricula: "31228", previsao_entrega: "dezembro de 2026",
     blocos: ["A","B"], pavimentos: 5, unidades_por_pavimento: 12,
-    tres_quartos: [1,6,7,12], prefixo_grupo: "GRAN ROYAL"
+    tres_quartos: [1,6,7,12], prefixo_grupo: "GRAN", taxa_price: "1,7"
   }
 };
 const TIPOLOGIAS = {
@@ -63,6 +63,11 @@ selEmp.addEventListener('change', () => {
   if(!emp) return;
   const cfg = EMPREENDIMENTOS[emp];
   cfg.blocos.forEach(b => { const o=document.createElement('option'); o.value=b; o.textContent='Bloco '+b; selBloco.appendChild(o); });
+  // preenche a taxa PRICE conforme o empreendimento
+  const taxaEl = document.getElementById('taxa_mensal');
+  if(taxaEl && cfg.taxa_price){ taxaEl.value = cfg.taxa_price; }
+  const taxaHint = document.getElementById('taxaHint');
+  if(taxaHint && cfg.taxa_price){ taxaHint.textContent = `${cfg.nome}: ${cfg.taxa_price}% a.m.`; }
   document.getElementById('brandSub').textContent = 'Geração de Contrato — ' + cfg.nome;
   const info = document.getElementById('empInfo');
   info.innerHTML = `<b>${cfg.nome}</b> — matrícula ${cfg.matricula}, entrega ${cfg.previsao_entrega}. ${cfg.blocos.length} blocos × ${cfg.pavimentos} pav × ${cfg.unidades_por_pavimento} un.`;
@@ -337,7 +342,7 @@ document.getElementById('createGroupBtn2').addEventListener('click', async () =>
   const bloco = selBloco.value, unidade = selUnidade.value;
   const tipo = tipologiaDe(selEmp.value, unidade);
   const clienteNome = document.getElementById('cliente_nome_grupo').value.trim();
-  venda.nome_grupo = `${emp.prefixo_grupo} - BL ${bloco} UN ${unidade}${tipo?' ('+TIPOLOGIAS[tipo].nome+')':''} - ${clienteNome.split(' ')[0].toUpperCase()}`;
+  venda.nome_grupo = `${emp.prefixo_grupo} - ${unidade} - ${bloco} - ${clienteNome.split(' ')[0].toUpperCase()}`;
 
   const payload = {
     empreendimento: selEmp.value, nome_empreendimento: emp.nome,
@@ -464,6 +469,9 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     corretor_nome: document.getElementById('corretor_nome').value.trim(),
     corretor_whatsapp: telLimpo(document.getElementById('corretor_whatsapp').value),
     corretor_email: document.getElementById('corretor_email').value.trim(),
+    corretor_creci: document.getElementById('corretor_creci').value.trim(),
+    imobiliaria_nome: document.getElementById('imobiliaria_nome').value.trim(),
+    imobiliaria_creci: document.getElementById('imobiliaria_creci').value.trim(),
     compradores: compradores,
     pagamento: pagamento,
     observacoes: document.getElementById('observacoes').value.trim(),
