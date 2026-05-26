@@ -146,6 +146,257 @@
         </div>
         <div class="tipologia-badge" id="empInfo"></div>
 
+        <div class="section-label">Unidade de interesse</div>
+        <div class="field">
+          <label>Bloco <span class="req">*</span></label>
+          <select id="bloco" required><option value="">—</option></select>
+          <span class="field-err">Obrigatório</span>
+        </div>
+        <div class="field">
+          <label>Unidade <span class="req">*</span></label>
+          <select id="unidade_numero" required><option value="">—</option></select>
+          <span class="field-err">Obrigatório</span>
+        </div>
+        <div class="tipologia-badge" id="tipoBadge"></div>
+
+        <div class="section-label">Corretor</div>
+        <div class="field">
+          <label>Nome do corretor <span class="req">*</span></label>
+          <input type="text" id="corretor_nome" required>
+          <span class="field-err">Obrigatório</span>
+        </div>
+        <div class="field">
+          <label>WhatsApp do corretor <span class="req">*</span> <span class="hint">(entra no grupo)</span></label>
+          <input type="text" id="corretor_whatsapp" placeholder="(85) 99999-9999" required>
+          <span class="field-err">Telefone inválido</span>
+        </div>
+        <div class="field">
+          <label>CRECI do corretor <span class="hint">(opcional)</span></label>
+          <input type="text" id="corretor_creci" placeholder="ex: 12345-F">
+        </div>
+        <div class="field">
+          <label>E-mail do corretor <span class="req">*</span> <span class="hint">(assina como testemunha)</span></label>
+          <input type="email" id="corretor_email" required>
+          <span class="field-err">E-mail inválido</span>
+        </div>
+        <div class="field">
+          <label>Nome da imobiliária <span class="hint">(opcional)</span></label>
+          <input type="text" id="imobiliaria_nome" placeholder="ex: Imobiliária X">
+        </div>
+        <div class="field">
+          <label>CRECI da imobiliária <span class="hint">(opcional)</span></label>
+          <input type="text" id="imobiliaria_creci" placeholder="ex: J-6789">
+        </div>
+
+        <div class="section-label">Compradores <span class="opt">mín. 1</span></div>
+        <div id="compradoresContainer" class="compradores-grid"></div>
+        <div class="field full">
+          <button type="button" class="btn-add btn-sm" id="addComprador">+ Adicionar comprador</button>
+        </div>
+
+        <div class="section-label">Condições de pagamento</div>
+        <div class="field">
+          <label>Valor total do imóvel <span class="req">*</span></label>
+          <input type="text" id="valor_total" placeholder="252.480,00" required inputmode="decimal">
+          <span class="field-err">Obrigatório</span>
+        </div>
+        <div class="field">
+          <label>Dia de vencimento das parcelas <span class="req">*</span></label>
+          <input type="number" id="dia_vencimento" placeholder="13" min="1" max="28" required>
+          <span class="field-err">Entre 1 e 28</span>
+        </div>
+
+        <p class="field full" style="font-size:13px;color:var(--muted);margin:-4px 0 2px;">Ative os componentes que essa venda tem:</p>
+        <div class="pay-toggle">
+          <div class="pay-chip on" data-comp="sinal">Sinal</div>
+          <div class="pay-chip" data-comp="parcelamento">Parcelamento (PRICE)</div>
+          <div class="pay-chip" data-comp="parcelamento_incc">Parcelamento (1% + INCC)</div>
+          <div class="pay-chip" data-comp="baloes">Balões</div>
+          <div class="pay-chip" data-comp="poschave">Pós-chave</div>
+          <div class="pay-chip" data-comp="banco">Saldo bancário</div>
+        </div>
+
+        <!-- SINAL -->
+        <div class="pay-section show" id="sec_sinal">
+          <div class="sub-grid">
+            <div class="field"><label>Valor do sinal</label><input type="text" id="valor_sinal" placeholder="20.000,00" inputmode="decimal"></div>
+            <div class="field"><label>Forma <span class="hint">(à vista ou parcelado)</span></label>
+              <select id="sinal_forma"><option value="avista">À vista (no ato)</option><option value="parcelado">Parcelado</option></select>
+            </div>
+            <div class="field" id="sinal_parc_qtd_wrap" style="display:none;">
+              <label>Em quantas vezes</label><input type="number" id="sinal_parcelas" placeholder="3" min="2" max="12">
+            </div>
+          </div>
+        </div>
+
+        <!-- PARCELAMENTO PRICE -->
+        <div class="pay-section" id="sec_parcelamento">
+          <div class="sub-grid">
+            <div class="field"><label>Valor a parcelar (PRICE)</label><input type="text" id="valor_parcelamento" placeholder="36.590,50" inputmode="decimal"></div>
+            <div class="field"><label>Nº de parcelas</label><input type="number" id="qtd_parcelas" placeholder="40" min="1"></div>
+            <div class="field"><label>Taxa mensal (%) <span class="hint" id="taxaHint">conforme empreendimento</span></label><input type="text" id="taxa_mensal" value="1,7" inputmode="decimal"></div>
+            <div class="field"><label>Valor da parcela <span class="hint">(auto ou manual)</span></label><input type="text" id="valor_parcela_manual" placeholder="calcular automático" inputmode="decimal"></div>
+          </div>
+          <div class="price-result" id="priceResult" style="display:none;">
+            <div>Parcela estimada (PRICE): <span class="pmt" id="pricePmt">—</span></div>
+            <div class="meta">
+              <span>Total: <b id="priceTotal">—</b></span>
+              <span>Juros: <b id="priceJuros">—</b></span>
+              <span id="priceManualNote"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- PARCELAMENTO 1% + INCC -->
+        <div class="pay-section" id="sec_parcelamento_incc">
+          <div class="sub-grid">
+            <div class="field"><label>Valor a parcelar (1% + INCC)</label><input type="text" id="valor_parcelamento_incc" placeholder="36.590,50" inputmode="decimal"></div>
+            <div class="field"><label>Nº de parcelas</label><input type="number" id="qtd_parcelas_incc" placeholder="70" min="1"></div>
+          </div>
+          <div class="price-result" id="inccResult" style="display:none;">
+            <div>Parcela base: <span class="pmt" id="inccPmt">—</span></div>
+            <div class="meta">
+              <span>Correção: <b>1% a.m. + INCC</b></span>
+              <span class="hint">INCC absorvido até 8,5% a.a.; acima disso o excedente é repassado.</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- BALÕES -->
+        <div class="pay-section" id="sec_baloes">
+          <div id="baloesContainer"></div>
+          <button type="button" class="btn-add btn-sm" id="addBalao" style="margin-top:8px;">+ Adicionar balão</button>
+        </div>
+
+        <!-- PÓS-CHAVE -->
+        <div class="pay-section" id="sec_poschave">
+          <div class="sub-grid">
+            <div class="field"><label>Valor pós-chave <span class="hint">(pago nas chaves)</span></label><input type="text" id="valor_poschave" placeholder="20.000,00" inputmode="decimal"></div>
+          </div>
+        </div>
+
+        <!-- SALDO BANCÁRIO -->
+        <div class="pay-section" id="sec_banco">
+          <div class="sub-grid">
+            <div class="field"><label>Saldo via financiamento bancário</label><input type="text" id="saldo_devedor" placeholder="175.889,03" inputmode="decimal"></div>
+          </div>
+        </div>
+
+        <div class="calc-box" id="calcBox"><span class="label">Soma dos componentes / Valor total</span><span class="val" id="calcVal">—</span></div>
+
+        <!-- OBSERVAÇÕES + IA -->
+        <div class="section-label">Particularidades da negociação <span class="opt">opcional</span></div>
+        <div class="ia-box">
+          <div class="field full">
+            <label>Observações livres <span class="hint">(ex: entrada com veículo, condição especial...)</span></label>
+            <textarea id="observacoes" placeholder="Descreva qualquer particularidade da negociação..."></textarea>
+          </div>
+          <div style="margin-top:10px;display:flex;gap:10px;align-items:center;" id="iaButtonRow">
+            <button type="button" class="btn-add btn-sm" id="revisarIA">🤖 Revisar com IA</button>
+            <span style="font-size:12px;color:var(--muted);">A IA alerta inconsistências e sugere redação. Você decide o que entra.</span>
+          </div>
+          <div class="ia-result" id="iaResult"></div>
+        </div>
+
+      </div>
+      <div class="actions">
+        <span></span>
+        <button class="btn-primary" id="createGroupBtn2">Criar grupo no WhatsApp</button>
+        <button class="btn-primary" id="submitBtn" disabled>Gerar contrato &amp; enviar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
+<script src="app_krv.js"></script>
+</body>
+</html>  .calc-box.bad .val{color:var(--error);} .calc-box.good .val{color:var(--ok);}
+  .tipologia-badge{grid-column:1/-1;padding:12px 16px;border-radius:10px;font-size:14px;display:none;
+    background:linear-gradient(135deg,rgba(59,93,58,.08),rgba(181,98,47,.06));border:1.5px solid var(--line);}
+  .tipologia-badge.show{display:block;} .tipologia-badge b{color:var(--moss-deep);}
+  .actions{display:flex;justify-content:space-between;gap:12px;margin-top:26px;}
+  button{font-family:inherit;font-size:15px;font-weight:600;padding:12px 26px;border-radius:10px;border:none;
+    cursor:pointer;transition:all .18s;display:inline-flex;align-items:center;gap:8px;}
+  .btn-primary{background:var(--moss);color:#fff;box-shadow:var(--shadow);}
+  .btn-primary:hover{background:var(--moss-deep);transform:translateY(-1px);}
+  .btn-primary:disabled{background:var(--line);color:var(--muted);cursor:not-allowed;transform:none;box-shadow:none;}
+  .btn-ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line);}
+  .btn-ghost:hover{border-color:var(--ink);}
+  .btn-fake{margin-top:12px;background:#fff4e0;color:#9a6700;border:1.5px dashed #d9a441;font-size:13px;padding:8px 16px;border-radius:8px;}
+  .btn-fake:hover{background:#ffe9c2;}
+  .btn-add{background:rgba(59,93,58,.1);color:var(--moss-deep);border:1.5px dashed var(--moss);font-size:14px;padding:10px 18px;}
+  .btn-add:hover{background:rgba(59,93,58,.18);}
+  .btn-sm{padding:7px 14px;font-size:13px;}
+  .btn-danger{background:transparent;color:var(--error);border:1.5px solid var(--line);}
+  .btn-danger:hover{border-color:var(--error);}
+  /* cards de comprador / balão */
+  .sub-card{grid-column:1/-1;border:1.5px solid var(--line);border-radius:12px;padding:18px;margin-bottom:4px;background:#fdfcfa;}
+  .compradores-grid{grid-column:1/-1;display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+  .compradores-grid .sub-card{grid-column:auto;margin-bottom:0;}
+  .sub-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+  .sub-card-head h4{font-family:'Fraunces',serif;font-size:15px;color:var(--moss-deep);}
+  .sub-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;}
+  .sub-grid .full{grid-column:1/-1;}
+  .tri-grid{display:grid;grid-template-columns:1fr 1.6fr 1fr;gap:12px 14px;}
+  .checkrow{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);}
+  .checkrow input{width:auto;}
+  /* toggle de componentes de pagamento */
+  .pay-toggle{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;}
+  .pay-chip{padding:8px 14px;border-radius:20px;border:1.5px solid var(--line);background:var(--card);
+    font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;color:var(--muted);}
+  .pay-chip.on{border-color:var(--moss);background:var(--moss);color:#fff;}
+  .pay-section{grid-column:1/-1;display:none;border-left:3px solid var(--moss);padding-left:16px;margin:4px 0;}
+  .pay-section.show{display:block;animation:fade .25s;}
+  .price-result{background:linear-gradient(135deg,rgba(184,146,74,.12),rgba(59,93,58,.08));border:1.5px solid var(--gold);
+    border-radius:10px;padding:14px 16px;margin-top:10px;font-size:14px;}
+  .price-result .pmt{font-family:'Fraunces',serif;font-size:24px;font-weight:700;color:var(--moss-deep);}
+  .price-result .meta{display:flex;gap:18px;margin-top:6px;color:var(--muted);font-size:13px;flex-wrap:wrap;}
+  .ia-box{grid-column:1/-1;margin-top:10px;}
+  .ia-result{background:rgba(184,146,74,.08);border:1.5px solid var(--gold);border-radius:10px;padding:14px 16px;
+    margin-top:10px;font-size:14px;display:none;}
+  .ia-result.show{display:block;animation:fade .25s;}
+  .ia-result h5{font-family:'Fraunces',serif;color:var(--moss-deep);margin-bottom:6px;font-size:14px;}
+  .overlay{position:fixed;inset:0;background:rgba(17,21,15,.55);backdrop-filter:blur(4px);display:none;place-items:center;z-index:50;}
+  .overlay.show{display:grid;}
+  .modal{background:var(--card);border-radius:18px;padding:38px;max-width:460px;text-align:center;box-shadow:var(--shadow);animation:pop .3s ease;}
+  @keyframes pop{from{transform:scale(.92);opacity:0;}to{transform:scale(1);opacity:1;}}
+  .modal .spin{width:48px;height:48px;margin:0 auto 18px;border:4px solid var(--line);border-top-color:var(--moss);border-radius:50%;animation:rot 1s linear infinite;}
+  @keyframes rot{to{transform:rotate(360deg);}}
+  .modal .icon{font-size:48px;margin-bottom:12px;} .modal h3{font-family:'Fraunces',serif;font-size:22px;margin-bottom:8px;}
+  .modal p{color:var(--muted);font-size:14px;margin-bottom:18px;}
+  .modal .errlist{text-align:left;background:#fdf3f2;border-radius:9px;padding:12px 16px;margin-bottom:18px;}
+  .modal .errlist li{font-size:13px;color:var(--error);margin-left:16px;}
+  @media (max-width:640px){.grid,.sub-grid,.tri-grid,.compradores-grid{grid-template-columns:1fr;}.steps{flex-direction:column;}.card{padding:22px;}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="brand">
+    <div class="logo-mark">K</div>
+    <div><h1>KRV Engenharia</h1><p id="brandSub">Geração de Contrato</p></div>
+  </header>
+
+  <div class="card">
+    <div class="panel active" id="panel1">
+      <div class="panel-head">
+        <h2>Nova venda</h2>
+        <p>Preencha o empreendimento, o corretor, a unidade, os compradores e as condições. Depois <span class="accent">crie o grupo</span> e <span class="accent">gere o contrato</span>.</p>
+        <button type="button" id="fillFakeBtn" class="btn-fake">🎲 Preencher dados de teste</button>
+      </div>
+      <div class="grid">
+        <div class="section-label">Empreendimento</div>
+        <div class="field full">
+          <label>Empreendimento <span class="req">*</span></label>
+          <select id="empreendimento" required>
+            <option value="">Selecione o empreendimento</option>
+            <option value="paco_aguas">Paço das Águas</option>
+            <option value="gran_royal">Gran Royal</option>
+          </select>
+          <span class="field-err">Obrigatório</span>
+        </div>
+        <div class="tipologia-badge" id="empInfo"></div>
+
         <div class="section-label">Corretor</div>
         <div class="field">
           <label>Nome do corretor <span class="req">*</span></label>
