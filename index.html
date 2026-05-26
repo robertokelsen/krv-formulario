@@ -1,298 +1,598 @@
-<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>KRV Engenharia — Nova Venda</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Archivo:wght@400;500;600;700&display=swap" rel="stylesheet">
-<style>
-  :root {
-    --ink:#11150f; --paper:#f4f1ea; --card:#fff; --moss:#3b5d3a; --moss-deep:#2a4429;
-    --clay:#b5622f; --line:#d9d3c6; --line-soft:#e8e3d8; --muted:#6f6a5d;
-    --error:#9b3127; --ok:#3b5d3a; --gold:#b8924a;
-    --shadow:0 2px 4px rgba(17,21,15,.04),0 12px 32px rgba(17,21,15,.08);
+// ============================================================
+// KRV — Formulário de Geração de Contrato (v3)
+// ============================================================
+
+// ---- CONFIG: ajuste os webhooks ----
+const WEBHOOK_GRUPO = 'https://n8n.larke.com.br/webhook/criar-grupo';
+const WEBHOOK_CONTRATO = 'https://n8n.larke.com.br/webhook/nova-venda-paco';
+const WEBHOOK_IA = 'https://n8n.larke.com.br/webhook/revisar-ia'; // opcional
+
+// ---- CONFIG DOS EMPREENDIMENTOS ----
+const EMPREENDIMENTOS = {
+  paco_aguas: {
+    nome: "Paço das Águas", matricula: "5480", previsao_entrega: "dezembro de 2027",
+    blocos: ["A","B","C","D","E"], pavimentos: 4, unidades_por_pavimento: 8,
+    tres_quartos: [1,4,5,8], prefixo_grupo: "PAÇO", taxa_price: "1,4"
+  },
+  gran_royal: {
+    nome: "Gran Royal", matricula: "31228", previsao_entrega: "dezembro de 2026",
+    blocos: ["A","B"], pavimentos: 5, unidades_por_pavimento: 12,
+    tres_quartos: [1,6,7,12], prefixo_grupo: "GRAN", taxa_price: "1,7"
   }
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{font-family:'Archivo',sans-serif;background:var(--paper);color:var(--ink);line-height:1.5;
-    -webkit-font-smoothing:antialiased;min-height:100vh;
-    background-image:radial-gradient(circle at 1px 1px,rgba(17,21,15,.04) 1px,transparent 0);background-size:28px 28px;}
-  .wrap{max-width:920px;margin:0 auto;padding:32px 20px 80px;}
-  header.brand{display:flex;align-items:center;gap:14px;padding-bottom:24px;margin-bottom:24px;border-bottom:2px solid var(--ink);}
-  .logo-mark{width:46px;height:46px;border-radius:9px;background:var(--moss);color:#fff;display:grid;place-items:center;
-    font-family:'Fraunces',serif;font-weight:700;font-size:22px;box-shadow:var(--shadow);}
-  .brand h1{font-family:'Fraunces',serif;font-weight:600;font-size:21px;letter-spacing:-.01em;}
-  .brand p{font-size:13px;color:var(--muted);margin-top:1px;}
-  .steps{display:flex;gap:8px;margin-bottom:24px;}
-  .step-pill{flex:1;padding:12px 16px;border-radius:10px;background:var(--card);border:1.5px solid var(--line);
-    display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;color:var(--muted);transition:all .25s;}
-  .step-pill.active{border-color:var(--moss);color:var(--moss-deep);box-shadow:var(--shadow);}
-  .step-pill.done{border-color:var(--moss);background:var(--moss);color:#fff;}
-  .step-num{width:24px;height:24px;border-radius:50%;background:var(--line-soft);color:var(--ink);
-    display:grid;place-items:center;font-size:13px;font-weight:700;flex-shrink:0;}
-  .step-pill.active .step-num{background:var(--moss);color:#fff;}
-  .step-pill.done .step-num{background:rgba(255,255,255,.25);color:#fff;}
-  .card{background:var(--card);border:1.5px solid var(--line);border-radius:16px;padding:30px;box-shadow:var(--shadow);}
-  .panel{display:none;} .panel.active{display:block;animation:fade .35s ease;}
-  @keyframes fade{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:none;}}
-  .panel-head{margin-bottom:22px;}
-  .panel-head h2{font-family:'Fraunces',serif;font-weight:600;font-size:22px;letter-spacing:-.01em;margin-bottom:4px;}
-  .panel-head p{font-size:14px;color:var(--muted);}
-  .panel-head .accent{color:var(--clay);}
-  .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px 18px;}
-  .field{display:flex;flex-direction:column;gap:6px;}
-  .field.full{grid-column:1/-1;}
-  .field.third{grid-column:span 1;}
-  label{font-size:13px;font-weight:600;color:var(--ink);display:flex;align-items:center;gap:5px;}
-  label .req{color:var(--clay);} label .hint{font-weight:400;color:var(--muted);font-size:12px;}
-  input,select,textarea{font-family:inherit;font-size:15px;color:var(--ink);padding:11px 13px;border:1.5px solid var(--line);
-    border-radius:9px;background:#fdfcfa;transition:all .18s;width:100%;}
-  input:focus,select:focus,textarea:focus{outline:none;border-color:var(--moss);box-shadow:0 0 0 3px rgba(59,93,58,.12);background:#fff;}
-  input.invalid,select.invalid{border-color:var(--error);background:#fdf3f2;}
-  input.valid{border-color:var(--moss);}
-  textarea{resize:vertical;min-height:70px;}
-  .field-err{font-size:12px;color:var(--error);display:none;} .field-err.show{display:block;}
-  .section-label{grid-column:1/-1;font-family:'Fraunces',serif;font-weight:600;font-size:15px;color:var(--moss-deep);
-    margin-top:8px;padding-bottom:6px;border-bottom:1px dashed var(--line);display:flex;align-items:center;gap:8px;justify-content:space-between;}
-  .section-label:first-child{margin-top:0;}
-  .section-label .opt{font-weight:400;color:var(--muted);font-size:13px;}
-  .calc-box{grid-column:1/-1;background:var(--paper);border:1.5px dashed var(--line);border-radius:10px;padding:14px 16px;
-    font-size:14px;display:flex;justify-content:space-between;align-items:center;}
-  .calc-box .label{color:var(--muted);} .calc-box .val{font-family:'Fraunces',serif;font-weight:600;font-size:18px;}
-  .calc-box.bad .val{color:var(--error);} .calc-box.good .val{color:var(--ok);}
-  .tipologia-badge{grid-column:1/-1;padding:12px 16px;border-radius:10px;font-size:14px;display:none;
-    background:linear-gradient(135deg,rgba(59,93,58,.08),rgba(181,98,47,.06));border:1.5px solid var(--line);}
-  .tipologia-badge.show{display:block;} .tipologia-badge b{color:var(--moss-deep);}
-  .actions{display:flex;justify-content:space-between;gap:12px;margin-top:26px;}
-  button{font-family:inherit;font-size:15px;font-weight:600;padding:12px 26px;border-radius:10px;border:none;
-    cursor:pointer;transition:all .18s;display:inline-flex;align-items:center;gap:8px;}
-  .btn-primary{background:var(--moss);color:#fff;box-shadow:var(--shadow);}
-  .btn-primary:hover{background:var(--moss-deep);transform:translateY(-1px);}
-  .btn-primary:disabled{background:var(--line);color:var(--muted);cursor:not-allowed;transform:none;box-shadow:none;}
-  .btn-ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line);}
-  .btn-ghost:hover{border-color:var(--ink);}
-  .btn-fake{margin-top:12px;background:#fff4e0;color:#9a6700;border:1.5px dashed #d9a441;font-size:13px;padding:8px 16px;border-radius:8px;}
-  .btn-fake:hover{background:#ffe9c2;}
-  .btn-add{background:rgba(59,93,58,.1);color:var(--moss-deep);border:1.5px dashed var(--moss);font-size:14px;padding:10px 18px;}
-  .btn-add:hover{background:rgba(59,93,58,.18);}
-  .btn-sm{padding:7px 14px;font-size:13px;}
-  .btn-danger{background:transparent;color:var(--error);border:1.5px solid var(--line);}
-  .btn-danger:hover{border-color:var(--error);}
-  /* cards de comprador / balão */
-  .sub-card{grid-column:1/-1;border:1.5px solid var(--line);border-radius:12px;padding:18px;margin-bottom:4px;background:#fdfcfa;}
-  .sub-card-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
-  .sub-card-head h4{font-family:'Fraunces',serif;font-size:15px;color:var(--moss-deep);}
-  .sub-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px 14px;}
-  .sub-grid .full{grid-column:1/-1;}
-  .tri-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px 14px;}
-  .checkrow{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);}
-  .checkrow input{width:auto;}
-  /* toggle de componentes de pagamento */
-  .pay-toggle{grid-column:1/-1;display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px;}
-  .pay-chip{padding:8px 14px;border-radius:20px;border:1.5px solid var(--line);background:var(--card);
-    font-size:13px;font-weight:500;cursor:pointer;transition:all .15s;color:var(--muted);}
-  .pay-chip.on{border-color:var(--moss);background:var(--moss);color:#fff;}
-  .pay-section{grid-column:1/-1;display:none;border-left:3px solid var(--moss);padding-left:16px;margin:4px 0;}
-  .pay-section.show{display:block;animation:fade .25s;}
-  .price-result{background:linear-gradient(135deg,rgba(184,146,74,.12),rgba(59,93,58,.08));border:1.5px solid var(--gold);
-    border-radius:10px;padding:14px 16px;margin-top:10px;font-size:14px;}
-  .price-result .pmt{font-family:'Fraunces',serif;font-size:24px;font-weight:700;color:var(--moss-deep);}
-  .price-result .meta{display:flex;gap:18px;margin-top:6px;color:var(--muted);font-size:13px;flex-wrap:wrap;}
-  .ia-box{grid-column:1/-1;margin-top:10px;}
-  .ia-result{background:rgba(184,146,74,.08);border:1.5px solid var(--gold);border-radius:10px;padding:14px 16px;
-    margin-top:10px;font-size:14px;display:none;}
-  .ia-result.show{display:block;animation:fade .25s;}
-  .ia-result h5{font-family:'Fraunces',serif;color:var(--moss-deep);margin-bottom:6px;font-size:14px;}
-  .overlay{position:fixed;inset:0;background:rgba(17,21,15,.55);backdrop-filter:blur(4px);display:none;place-items:center;z-index:50;}
-  .overlay.show{display:grid;}
-  .modal{background:var(--card);border-radius:18px;padding:38px;max-width:460px;text-align:center;box-shadow:var(--shadow);animation:pop .3s ease;}
-  @keyframes pop{from{transform:scale(.92);opacity:0;}to{transform:scale(1);opacity:1;}}
-  .modal .spin{width:48px;height:48px;margin:0 auto 18px;border:4px solid var(--line);border-top-color:var(--moss);border-radius:50%;animation:rot 1s linear infinite;}
-  @keyframes rot{to{transform:rotate(360deg);}}
-  .modal .icon{font-size:48px;margin-bottom:12px;} .modal h3{font-family:'Fraunces',serif;font-size:22px;margin-bottom:8px;}
-  .modal p{color:var(--muted);font-size:14px;margin-bottom:18px;}
-  .modal .errlist{text-align:left;background:#fdf3f2;border-radius:9px;padding:12px 16px;margin-bottom:18px;}
-  .modal .errlist li{font-size:13px;color:var(--error);margin-left:16px;}
-  @media (max-width:640px){.grid,.sub-grid,.tri-grid{grid-template-columns:1fr;}.steps{flex-direction:column;}.card{padding:22px;}}
-</style>
-</head>
-<body>
-<div class="wrap">
-  <header class="brand">
-    <div class="logo-mark">K</div>
-    <div><h1>KRV Engenharia</h1><p id="brandSub">Geração de Contrato</p></div>
-  </header>
+};
+const TIPOLOGIAS = {
+  '3q': { nome:"3 quartos", area:"64,60 m²",
+    desc:"APARTAMENTO 3 QUARTOS: 64,60m² de área construída, constituído de 01 (uma) suíte, 02 (dois) quartos, 01 (um) banheiro social, sala, cozinha, varanda e 01 (uma) vaga para veículo." },
+  '2q': { nome:"2 quartos", area:"57,94 m²",
+    desc:"APARTAMENTO 2 QUARTOS: 57,94m² de área construída, constituído de 01 (uma) suíte, 01 (um) quarto, 01 (um) banheiro social, sala, cozinha, varanda e 01 (uma) vaga para veículo." }
+};
 
-  <div class="card">
-    <div class="panel active" id="panel1">
-      <div class="panel-head">
-        <h2>Nova venda</h2>
-        <p>Preencha o empreendimento, o corretor, a unidade, os compradores e as condições. Depois <span class="accent">crie o grupo</span> e <span class="accent">gere o contrato</span>.</p>
-        <button type="button" id="fillFakeBtn" class="btn-fake">🎲 Preencher dados de teste</button>
-      </div>
-      <div class="grid">
-        <div class="section-label">Empreendimento</div>
-        <div class="field full">
-          <label>Empreendimento <span class="req">*</span></label>
-          <select id="empreendimento" required>
-            <option value="">Selecione o empreendimento</option>
-            <option value="paco_aguas">Paço das Águas</option>
-            <option value="gran_royal">Gran Royal</option>
-          </select>
-          <span class="field-err">Obrigatório</span>
-        </div>
-        <div class="tipologia-badge" id="empInfo"></div>
+const venda = { groupJid:null, nome_grupo:null, emp:null };
 
-        <div class="section-label">Corretor</div>
-        <div class="field">
-          <label>Nome do corretor <span class="req">*</span></label>
-          <input type="text" id="corretor_nome" required>
-          <span class="field-err">Obrigatório</span>
-        </div>
-        <div class="field">
-          <label>WhatsApp do corretor <span class="req">*</span> <span class="hint">(entra no grupo)</span></label>
-          <input type="text" id="corretor_whatsapp" placeholder="(85) 99999-9999" required>
-          <span class="field-err">Telefone inválido</span>
-        </div>
-        <div class="field full">
-          <label>E-mail do corretor <span class="req">*</span> <span class="hint">(assina como testemunha)</span></label>
-          <input type="email" id="corretor_email" required>
-          <span class="field-err">E-mail inválido</span>
-        </div>
-        <div class="tri-grid">
-          <div class="field">
-            <label>CRECI do corretor <span class="hint">(opcional)</span></label>
-            <input type="text" id="corretor_creci" placeholder="ex: 12345-F">
-          </div>
-          <div class="field">
-            <label>Nome da imobiliária <span class="hint">(opcional)</span></label>
-            <input type="text" id="imobiliaria_nome" placeholder="ex: Imobiliária X">
-          </div>
-          <div class="field">
-            <label>CRECI da imobiliária <span class="hint">(opcional)</span></label>
-            <input type="text" id="imobiliaria_creci" placeholder="ex: J-6789">
-          </div>
-        </div>
+// ---- HELPERS ----
+function parseBRL(v){ if(!v)return 0; let s=String(v).replace(/[^\d,.\-]/g,''); const tv=s.includes(','),tp=s.includes('.'); if(tv&&tp)s=s.replace(/\./g,'').replace(',','.'); else if(tv)s=s.replace(',','.'); const n=parseFloat(s); return isFinite(n)?n:0; }
+function fmtBRL(n){ return n.toLocaleString('pt-BR',{style:'currency',currency:'BRL'}); }
+function validarCPF(cpf){ cpf=String(cpf).replace(/[^\d]/g,''); if(cpf.length!==11||/^(\d)\1+$/.test(cpf))return false; let s=0,r; for(let i=1;i<=9;i++)s+=parseInt(cpf.substring(i-1,i))*(11-i); r=(s*10)%11; if(r===10||r===11)r=0; if(r!==parseInt(cpf.substring(9,10)))return false; s=0; for(let i=1;i<=10;i++)s+=parseInt(cpf.substring(i-1,i))*(12-i); r=(s*10)%11; if(r===10||r===11)r=0; return r===parseInt(cpf.substring(10,11)); }
+function validarTel(t){ const d=String(t).replace(/\D/g,''); return d.length===10||d.length===11; }
+function validarEmail(e){ return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e); }
+function telLimpo(t){ const d=String(t).replace(/\D/g,''); return d.startsWith('55')?d:'55'+d; }
+function maskCPFval(v){ v=v.replace(/\D/g,'').slice(0,11); return v.replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d)/,'$1.$2').replace(/(\d{3})(\d{1,2})$/,'$1-$2'); }
+function maskTelVal(v){ v=v.replace(/\D/g,'').slice(0,11); if(v.length>6)v=v.replace(/(\d{2})(\d{5})(\d{0,4})/,'($1) $2-$3'); else if(v.length>2)v=v.replace(/(\d{2})(\d{0,5})/,'($1) $2'); return v.trim(); }
 
-        <div class="section-label">Unidade de interesse</div>
-        <div class="field">
-          <label>Bloco <span class="req">*</span></label>
-          <select id="bloco" required><option value="">—</option></select>
-          <span class="field-err">Obrigatório</span>
-        </div>
-        <div class="field">
-          <label>Unidade <span class="req">*</span></label>
-          <select id="unidade_numero" required><option value="">—</option></select>
-          <span class="field-err">Obrigatório</span>
-        </div>
-        <div class="tipologia-badge" id="tipoBadge"></div>
+// PRICE
+function calcPRICE(vf, taxaPct, n){ const i=taxaPct/100; if(i<=0)return vf/n; const f=Math.pow(1+i,n); return vf*(i*f)/(f-1); }
 
-        <div class="section-label">Compradores <span class="opt">mín. 1</span></div>
-        <div id="compradoresContainer"></div>
-        <div class="field full">
-          <button type="button" class="btn-add btn-sm" id="addComprador">+ Adicionar comprador</button>
-        </div>
+function tipologiaDe(emp, unidade){
+  const cfg = EMPREENDIMENTOS[emp]; if(!cfg) return null;
+  const u = String(unidade); const ult = parseInt(u.slice(-2));
+  return cfg.tres_quartos.includes(ult) ? '3q' : '2q';
+}
 
-        <div class="section-label">Condições de pagamento</div>
-        <div class="field">
-          <label>Valor total do imóvel <span class="req">*</span></label>
-          <input type="text" id="valor_total" placeholder="252.480,00" required inputmode="decimal">
-          <span class="field-err">Obrigatório</span>
-        </div>
-        <div class="field">
-          <label>Dia de vencimento das parcelas <span class="req">*</span></label>
-          <input type="number" id="dia_vencimento" placeholder="13" min="1" max="28" required>
-          <span class="field-err">Entre 1 e 28</span>
-        </div>
+// ---- POPULAR BLOCO/UNIDADE conforme empreendimento ----
+const selEmp = document.getElementById('empreendimento');
+const selBloco = document.getElementById('bloco');
+const selUnidade = document.getElementById('unidade_numero');
 
-        <p class="field full" style="font-size:13px;color:var(--muted);margin:-4px 0 2px;">Ative os componentes que essa venda tem:</p>
-        <div class="pay-toggle">
-          <div class="pay-chip on" data-comp="sinal">Sinal</div>
-          <div class="pay-chip" data-comp="parcelamento">Parcelamento (PRICE)</div>
-          <div class="pay-chip" data-comp="baloes">Balões</div>
-          <div class="pay-chip" data-comp="poschave">Pós-chave</div>
-          <div class="pay-chip" data-comp="banco">Saldo bancário</div>
-        </div>
+selEmp.addEventListener('change', () => {
+  const emp = selEmp.value;
+  venda.emp = emp;
+  selBloco.innerHTML = '<option value="">—</option>';
+  selUnidade.innerHTML = '<option value="">—</option>';
+  document.getElementById('empInfo').classList.remove('show');
+  document.getElementById('tipoBadge').classList.remove('show');
+  if(!emp) return;
+  const cfg = EMPREENDIMENTOS[emp];
+  cfg.blocos.forEach(b => { const o=document.createElement('option'); o.value=b; o.textContent='Bloco '+b; selBloco.appendChild(o); });
+  // preenche a taxa PRICE conforme o empreendimento
+  const taxaEl = document.getElementById('taxa_mensal');
+  if(taxaEl && cfg.taxa_price){ taxaEl.value = cfg.taxa_price; }
+  const taxaHint = document.getElementById('taxaHint');
+  if(taxaHint && cfg.taxa_price){ taxaHint.textContent = `${cfg.nome}: ${cfg.taxa_price}% a.m.`; }
+  document.getElementById('brandSub').textContent = 'Geração de Contrato — ' + cfg.nome;
+  const info = document.getElementById('empInfo');
+  info.innerHTML = `<b>${cfg.nome}</b> — matrícula ${cfg.matricula}, entrega ${cfg.previsao_entrega}. ${cfg.blocos.length} blocos × ${cfg.pavimentos} pav × ${cfg.unidades_por_pavimento} un.`;
+  info.classList.add('show');
+});
 
-        <!-- SINAL -->
-        <div class="pay-section show" id="sec_sinal">
-          <div class="sub-grid">
-            <div class="field"><label>Valor do sinal</label><input type="text" id="valor_sinal" placeholder="20.000,00" inputmode="decimal"></div>
-            <div class="field"><label>Forma <span class="hint">(à vista ou parcelado)</span></label>
-              <select id="sinal_forma"><option value="avista">À vista (no ato)</option><option value="parcelado">Parcelado</option></select>
-            </div>
-            <div class="field" id="sinal_parc_qtd_wrap" style="display:none;">
-              <label>Em quantas vezes</label><input type="number" id="sinal_parcelas" placeholder="3" min="2" max="12">
-            </div>
-          </div>
-        </div>
+selBloco.addEventListener('change', () => {
+  const emp = selEmp.value; if(!emp) return;
+  const cfg = EMPREENDIMENTOS[emp];
+  selUnidade.innerHTML = '<option value="">—</option>';
+  for(let pav=1; pav<=cfg.pavimentos; pav++){
+    for(let u=1; u<=cfg.unidades_por_pavimento; u++){
+      const num = pav + (u<10 ? '0'+u : ''+u);
+      const o=document.createElement('option'); o.value=num; o.textContent=num; selUnidade.appendChild(o);
+    }
+  }
+});
 
-        <!-- PARCELAMENTO PRICE -->
-        <div class="pay-section" id="sec_parcelamento">
-          <div class="sub-grid">
-            <div class="field"><label>Valor a parcelar (PRICE)</label><input type="text" id="valor_parcelamento" placeholder="36.590,50" inputmode="decimal"></div>
-            <div class="field"><label>Nº de parcelas</label><input type="number" id="qtd_parcelas" placeholder="40" min="1"></div>
-            <div class="field"><label>Taxa mensal (%) <span class="hint" id="taxaHint">conforme empreendimento</span></label><input type="text" id="taxa_mensal" value="1,7" inputmode="decimal"></div>
-            <div class="field"><label>Valor da parcela <span class="hint">(auto ou manual)</span></label><input type="text" id="valor_parcela_manual" placeholder="calcular automático" inputmode="decimal"></div>
-          </div>
-          <div class="price-result" id="priceResult" style="display:none;">
-            <div>Parcela estimada (PRICE): <span class="pmt" id="pricePmt">—</span></div>
-            <div class="meta">
-              <span>Total: <b id="priceTotal">—</b></span>
-              <span>Juros: <b id="priceJuros">—</b></span>
-              <span id="priceManualNote"></span>
-            </div>
-          </div>
-        </div>
+selUnidade.addEventListener('change', () => {
+  const emp = selEmp.value; const t = tipologiaDe(emp, selUnidade.value);
+  const b = document.getElementById('tipoBadge');
+  if(t){ b.innerHTML=`Unidade <b>${TIPOLOGIAS[t].nome}</b> (${TIPOLOGIAS[t].area}).`; b.classList.add('show'); }
+  else b.classList.remove('show');
+});
 
-        <!-- BALÕES -->
-        <div class="pay-section" id="sec_baloes">
-          <div id="baloesContainer"></div>
-          <button type="button" class="btn-add btn-sm" id="addBalao" style="margin-top:8px;">+ Adicionar balão</button>
-        </div>
+// ---- COMPRADORES (ilimitados) ----
+let compradorCount = 0;
+const compradoresContainer = document.getElementById('compradoresContainer');
 
-        <!-- PÓS-CHAVE -->
-        <div class="pay-section" id="sec_poschave">
-          <div class="sub-grid">
-            <div class="field"><label>Valor pós-chave <span class="hint">(pago nas chaves)</span></label><input type="text" id="valor_poschave" placeholder="20.000,00" inputmode="decimal"></div>
-          </div>
-        </div>
-
-        <!-- SALDO BANCÁRIO -->
-        <div class="pay-section" id="sec_banco">
-          <div class="sub-grid">
-            <div class="field"><label>Saldo via financiamento bancário</label><input type="text" id="saldo_devedor" placeholder="175.889,03" inputmode="decimal"></div>
-          </div>
-        </div>
-
-        <div class="calc-box" id="calcBox"><span class="label">Soma dos componentes / Valor total</span><span class="val" id="calcVal">—</span></div>
-
-        <!-- OBSERVAÇÕES + IA -->
-        <div class="section-label">Particularidades da negociação <span class="opt">opcional</span></div>
-        <div class="ia-box">
-          <div class="field full">
-            <label>Observações livres <span class="hint">(ex: entrada com veículo, condição especial...)</span></label>
-            <textarea id="observacoes" placeholder="Descreva qualquer particularidade da negociação..."></textarea>
-          </div>
-          <div style="margin-top:10px;display:flex;gap:10px;align-items:center;" id="iaButtonRow">
-            <button type="button" class="btn-add btn-sm" id="revisarIA">🤖 Revisar com IA</button>
-            <span style="font-size:12px;color:var(--muted);">A IA alerta inconsistências e sugere redação. Você decide o que entra.</span>
-          </div>
-          <div class="ia-result" id="iaResult"></div>
-        </div>
-
-      </div>
-      <div class="actions">
-        <span></span>
-        <button class="btn-primary" id="createGroupBtn2">Criar grupo no WhatsApp</button>
-        <button class="btn-primary" id="submitBtn" disabled>Gerar contrato &amp; enviar</button>
-      </div>
+function criarComprador(primeiro=false){
+  compradorCount++;
+  const idx = compradorCount;
+  const div = document.createElement('div');
+  div.className = 'sub-card';
+  div.dataset.comprador = idx;
+  div.innerHTML = `
+    <div class="sub-card-head">
+      <h4>Comprador ${idx}</h4>
+      ${primeiro ? '' : '<button type="button" class="btn-danger btn-sm" onclick="removerComprador('+idx+')">Remover</button>'}
     </div>
-  </div>
-</div>
+    <div class="sub-grid">
+      <div class="field full"><label>Nome completo <span class="req">*</span></label><input type="text" data-f="nome" required></div>
+      <div class="field"><label>CPF <span class="req">*</span></label><input type="text" data-f="cpf" class="mask-cpf" placeholder="000.000.000-00" required></div>
+      <div class="field"><label>Nacionalidade</label><select data-f="nacionalidade"><option value="brasileiro(a)">brasileiro(a)</option><option value="estrangeiro(a)">estrangeiro(a)</option></select></div>
+      <div class="field"><label>Estado civil <span class="req">*</span></label><select data-f="estado_civil" required><option value="">—</option><option>solteiro(a)</option><option>casado(a)</option><option>divorciado(a)</option><option>viúvo(a)</option><option>união estável</option></select></div>
+      <div class="field"><label>Profissão <span class="req">*</span></label><input type="text" data-f="profissao" required></div>
+      <div class="field"><label>WhatsApp <span class="req">*</span> <span class="hint">(recebe link)</span></label><input type="text" data-f="whatsapp" class="mask-tel" placeholder="(85) 99999-9999" required></div>
+      <div class="field"><label>E-mail <span class="req">*</span> <span class="hint">(cadastro D4Sign)</span></label><input type="email" data-f="email" required></div>
+      ${primeiro ? '' : '<div class="field full checkrow"><input type="checkbox" data-f="mesmo_end" id="mesmoEnd'+idx+'"><label for="mesmoEnd'+idx+'" style="font-weight:400;">Mesmo endereço do Comprador 1</label></div>'}
+      <div class="field full" data-end-wrap>
+        <div class="sub-grid">
+          <div class="field"><label>CEP <span class="req">*</span></label><input type="text" data-f="cep" class="mask-cep" placeholder="00000-000" required><span class="hint" data-cep-status></span></div>
+          <div class="field"><label>Número <span class="req">*</span></label><input type="text" data-f="numero" placeholder="nº" required></div>
+          <div class="field full"><label>Rua <span class="req">*</span></label><input type="text" data-f="rua" required></div>
+          <div class="field"><label>Bairro <span class="req">*</span></label><input type="text" data-f="bairro" required></div>
+          <div class="field"><label>Cidade/UF <span class="req">*</span></label><input type="text" data-f="cidade" required></div>
+          <div class="field full"><label>Complemento <span class="hint">(opcional)</span></label><input type="text" data-f="complemento" placeholder="apto, bloco, ponto de referência"></div>
+        </div>
+      </div>`;
+  compradoresContainer.appendChild(div);
 
-<div class="overlay" id="overlay"><div class="modal" id="modal"></div></div>
-<script src="app_krv.js"></script>
-</body>
-</html>
+  // máscaras
+  div.querySelector('.mask-cpf').addEventListener('input', e => e.target.value = maskCPFval(e.target.value));
+  div.querySelector('.mask-tel').addEventListener('input', e => e.target.value = maskTelVal(e.target.value));
+
+  // ---- CEP: máscara + autopreenchimento via ViaCEP ----
+  const cepInput = div.querySelector('.mask-cep');
+  const cepStatus = div.querySelector('[data-cep-status]');
+  cepInput.addEventListener('input', e => {
+    let v = e.target.value.replace(/\D/g,'').slice(0,8);
+    if(v.length>5) v = v.slice(0,5)+'-'+v.slice(5);
+    e.target.value = v;
+    if(v.replace(/\D/g,'').length === 8) buscarCEP(div, v, cepStatus);
+  });
+
+  // checkbox mesmo endereço
+  const chk = div.querySelector('[data-f="mesmo_end"]');
+  if(chk){
+    chk.addEventListener('change', () => {
+      const endWrap = div.querySelector('[data-end-wrap]');
+      if(chk.checked){
+        const c1 = compradoresContainer.querySelector('[data-comprador="1"]');
+        ['cep','numero','rua','bairro','cidade','complemento'].forEach(f=>{
+          const orig = c1.querySelector(`[data-f="${f}"]`);
+          const dest = div.querySelector(`[data-f="${f}"]`);
+          if(orig && dest) dest.value = orig.value;
+        });
+        endWrap.style.display='none';
+      } else { endWrap.style.display='block'; }
+    });
+  }
+}
+
+// ---- Busca CEP via ViaCEP e autopreenche ----
+async function buscarCEP(div, cep, statusEl){
+  const limpo = cep.replace(/\D/g,'');
+  if(limpo.length !== 8) return;
+  if(statusEl) statusEl.textContent = 'buscando…';
+  try{
+    const resp = await fetch(`https://viacep.com.br/ws/${limpo}/json/`);
+    const d = await resp.json();
+    if(d.erro){
+      if(statusEl) statusEl.textContent = 'CEP não encontrado';
+      return;
+    }
+    const setF = (f,v)=>{ const el=div.querySelector(`[data-f="${f}"]`); if(el && v) el.value = v; };
+    setF('rua', d.logradouro);
+    setF('bairro', d.bairro);
+    setF('cidade', d.localidade && d.uf ? `${d.localidade}/${d.uf}` : '');
+    if(statusEl) statusEl.textContent = '✓';
+    // foca no número, que é o que falta digitar
+    const numEl = div.querySelector('[data-f="numero"]');
+    if(numEl) numEl.focus();
+  }catch(e){
+    if(statusEl) statusEl.textContent = 'erro ao buscar';
+  }
+}
+window.removerComprador = function(idx){
+  const el = compradoresContainer.querySelector(`[data-comprador="${idx}"]`);
+  if(el) el.remove();
+};
+document.getElementById('addComprador').addEventListener('click', () => criarComprador(false));
+criarComprador(true); // primeiro comprador
+
+// ==== DADOS FICTÍCIOS PARA TESTE ====
+function gerarCPFvalido(){
+  const n = Array.from({length:9}, ()=>Math.floor(Math.random()*10));
+  let s=0; for(let i=0;i<9;i++) s+=n[i]*(10-i);
+  let d1=(s*10)%11; if(d1===10) d1=0; n.push(d1);
+  s=0; for(let i=0;i<10;i++) s+=n[i]*(11-i);
+  let d2=(s*10)%11; if(d2===10) d2=0; n.push(d2);
+  return n.join('');
+}
+function rnd(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
+function gerarTel(){ return '(85) 9'+(Math.floor(1000+Math.random()*9000))+'-'+(Math.floor(1000+Math.random()*9000)); }
+function disparar(el,ev){ el.dispatchEvent(new Event(ev,{bubbles:true})); }
+
+const FAKE = {
+  nomes:['Pedro Henrique Silva Sales','Maria Clara Souza Lima','João Vitor Almeida','Ana Beatriz Costa','Lucas Gabriel Ferreira','Mariana Oliveira Rocha','Rafael Santos Mota','Juliana Pereira Dias','Carlos Eduardo Nunes','Fernanda Ribeiro Gomes'],
+  profissoes:['Engenheiro','Professora','Médico','Advogada','Comerciante','Analista','Enfermeira','Vendedor','Contadora','Autônomo'],
+  corretores:['Messias Oliveira','Caio Gomes','Aldenilson Dutra','Trend Imob','Elite Imobiliária','Marca Imóveis'],
+  ruas:['Rua das Flores','Av. Brasil','Rua João Pessoa','Av. dos Expedicionários','Rua Castro Alves'],
+  bairros:['Centro','Jereissati','Luzardo Viana','Pajuçara','Maracananzinho'],
+  estados_civis:['solteiro(a)','casado(a)','divorciado(a)','união estável']
+};
+
+function preencherComprador(card){
+  const set=(f,v)=>{ const el=card.querySelector(`[data-f="${f}"]`); if(!el) return; el.value=v; disparar(el,'input'); disparar(el,'change'); };
+  const nome = rnd(FAKE.nomes);
+  const primeiroEmail = nome.toLowerCase().split(' ')[0]+Math.floor(Math.random()*900);
+  set('nome', nome);
+  set('cpf', maskCPFval(gerarCPFvalido()));
+  set('estado_civil', rnd(FAKE.estados_civis));
+  set('profissao', rnd(FAKE.profissoes));
+  set('whatsapp', gerarTel());
+  set('email', primeiroEmail+'@teste.com');
+  // endereço (preenche direto, sem depender do ViaCEP)
+  set('cep','60000-000');
+  set('numero', String(Math.floor(100+Math.random()*900)));
+  set('rua', rnd(FAKE.ruas));
+  set('bairro', rnd(FAKE.bairros));
+  set('cidade','Maracanaú/CE');
+}
+
+document.getElementById('fillFakeBtn').addEventListener('click', () => {
+  // 1. empreendimento aleatório → dispara change (popula blocos)
+  const emps = Object.keys(EMPREENDIMENTOS);
+  selEmp.value = rnd(emps);
+  disparar(selEmp,'change');
+
+  // 2. bloco aleatório → dispara change (popula unidades)
+  const cfg = EMPREENDIMENTOS[selEmp.value];
+  selBloco.value = rnd(cfg.blocos);
+  disparar(selBloco,'change');
+
+  // 3. unidade aleatória (entre as opções já populadas)
+  const opts = Array.from(selUnidade.options).filter(o=>o.value);
+  if(opts.length){ selUnidade.value = rnd(opts).value; disparar(selUnidade,'change'); }
+
+  // 4. corretor
+  const corr = rnd(FAKE.nomes);
+  document.getElementById('corretor_nome').value = rnd(FAKE.corretores);
+  document.getElementById('corretor_whatsapp').value = gerarTel();
+  document.getElementById('corretor_email').value = 'corretor'+Math.floor(Math.random()*900)+'@teste.com';
+  document.getElementById('corretor_creci').value = String(Math.floor(10000+Math.random()*90000))+'-F';
+
+  // 5. compradores existentes
+  compradoresContainer.querySelectorAll('.sub-card').forEach(preencherComprador);
+
+  // 6. valores de pagamento
+  const total = 250000 + Math.floor(Math.random()*40)*1000;
+  const sinal = 20000;
+  const parcelar = total - sinal;
+  const setVal = (id,v)=>{ const el=document.getElementById(id); if(el){ el.value=v; disparar(el,'input'); } };
+  setVal('valor_total', total.toLocaleString('pt-BR',{minimumFractionDigits:2}));
+  setVal('valor_sinal', sinal.toLocaleString('pt-BR',{minimumFractionDigits:2}));
+  // ativa parcelamento (PRICE) e preenche
+  const chipParc = document.querySelector('.pay-chip[data-comp="parcelamento"]');
+  if(chipParc && !chipParc.classList.contains('on')) chipParc.click();
+  setVal('valor_parcelamento', parcelar.toLocaleString('pt-BR',{minimumFractionDigits:2}));
+  setVal('qtd_parcelas', '60');
+
+  showModal(`<div class="icon">🎲</div><h3>Dados de teste preenchidos</h3><p>Empreendimento, corretor, unidade e compradores foram preenchidos com dados fictícios. Revise e teste o fluxo.</p><button class="btn-primary" onclick="hideModal()">Ok</button>`);
+});
+// ==== FIM DADOS FICTÍCIOS ====
+
+
+// ---- TOGGLES de pagamento ----
+document.querySelectorAll('.pay-chip').forEach(chip => {
+  chip.addEventListener('click', () => {
+    chip.classList.toggle('on');
+    const sec = document.getElementById('sec_'+chip.dataset.comp);
+    sec.classList.toggle('show', chip.classList.contains('on'));
+    atualizarCalc();
+  });
+});
+
+// sinal parcelado mostra qtd
+document.getElementById('sinal_forma').addEventListener('change', e => {
+  document.getElementById('sinal_parc_qtd_wrap').style.display = e.target.value==='parcelado' ? 'flex' : 'none';
+});
+
+// ---- BALÕES ----
+let balaoCount = 0;
+const baloesContainer = document.getElementById('baloesContainer');
+function criarBalao(){
+  balaoCount++; const idx=balaoCount;
+  const div=document.createElement('div'); div.className='sub-card'; div.dataset.balao=idx;
+  div.innerHTML=`<div class="sub-card-head"><h4>Balão ${idx}</h4><button type="button" class="btn-danger btn-sm" onclick="removerBalao(${idx})">Remover</button></div>
+    <div class="sub-grid">
+      <div class="field"><label>Valor</label><input type="text" data-f="valor" class="balao-val" placeholder="10.000,00" inputmode="decimal"></div>
+      <div class="field"><label>Data / vencimento</label><input type="text" data-f="data" placeholder="dez/2026 ou anual"></div>
+    </div>`;
+  baloesContainer.appendChild(div);
+  div.querySelector('.balao-val').addEventListener('input', atualizarCalc);
+}
+window.removerBalao = function(idx){ const el=baloesContainer.querySelector(`[data-balao="${idx}"]`); if(el){el.remove(); atualizarCalc();} };
+document.getElementById('addBalao').addEventListener('click', criarBalao);
+
+// ---- PRICE em tempo real ----
+function atualizarPrice(){
+  const vf = parseBRL(document.getElementById('valor_parcelamento').value);
+  const n = parseInt(document.getElementById('qtd_parcelas').value);
+  const taxa = parseBRL(document.getElementById('taxa_mensal').value);
+  const manual = parseBRL(document.getElementById('valor_parcela_manual').value);
+  const box = document.getElementById('priceResult');
+  if(!vf || !n){ box.style.display='none'; return; }
+  box.style.display='block';
+  let pmt, nota='';
+  if(manual > 0){ pmt = manual; nota = '(parcela informada manualmente)'; }
+  else { pmt = calcPRICE(vf, taxa, n); nota = `@ ${taxa}% a.m.`; }
+  const total = pmt * n;
+  document.getElementById('pricePmt').textContent = fmtBRL(pmt);
+  document.getElementById('priceTotal').textContent = fmtBRL(total);
+  document.getElementById('priceJuros').textContent = fmtBRL(total - vf);
+  document.getElementById('priceManualNote').textContent = nota;
+}
+['valor_parcelamento','qtd_parcelas','taxa_mensal','valor_parcela_manual'].forEach(id =>
+  document.getElementById(id).addEventListener('input', () => { atualizarPrice(); atualizarCalc(); }));
+
+// ---- Parcelamento 1% + INCC em tempo real ----
+function atualizarIncc(){
+  const vf = parseBRL(document.getElementById('valor_parcelamento_incc').value);
+  const n = parseInt(document.getElementById('qtd_parcelas_incc').value);
+  const box = document.getElementById('inccResult');
+  if(!vf || !n){ box.style.display='none'; return; }
+  box.style.display='block';
+  // parcela base = valor ÷ nº parcelas (correção 1%+INCC é aplicada mês a mês depois)
+  document.getElementById('inccPmt').textContent = fmtBRL(vf / n);
+}
+['valor_parcelamento_incc','qtd_parcelas_incc'].forEach(id =>
+  document.getElementById(id).addEventListener('input', () => { atualizarIncc(); atualizarCalc(); }));
+
+// ---- CÁLCULO DA SOMA (valor de face) ----
+function somaComponentes(){
+  let soma = 0;
+  if(document.querySelector('.pay-chip[data-comp="sinal"]').classList.contains('on')) soma += parseBRL(document.getElementById('valor_sinal').value);
+  if(document.querySelector('.pay-chip[data-comp="parcelamento"]').classList.contains('on')) soma += parseBRL(document.getElementById('valor_parcelamento').value);
+  if(document.querySelector('.pay-chip[data-comp="parcelamento_incc"]').classList.contains('on')) soma += parseBRL(document.getElementById('valor_parcelamento_incc').value);
+  if(document.querySelector('.pay-chip[data-comp="poschave"]').classList.contains('on')) soma += parseBRL(document.getElementById('valor_poschave').value);
+  if(document.querySelector('.pay-chip[data-comp="banco"]').classList.contains('on')) soma += parseBRL(document.getElementById('saldo_devedor').value);
+  if(document.querySelector('.pay-chip[data-comp="baloes"]').classList.contains('on')){
+    baloesContainer.querySelectorAll('.balao-val').forEach(i => soma += parseBRL(i.value));
+  }
+  return soma;
+}
+function atualizarCalc(){
+  const total = parseBRL(document.getElementById('valor_total').value);
+  const soma = somaComponentes();
+  const box=document.getElementById('calcBox'), val=document.getElementById('calcVal');
+  if(!total && !soma){ val.textContent='—'; box.className='calc-box'; return; }
+  val.textContent = fmtBRL(soma)+' / '+fmtBRL(total);
+  box.className = (Math.abs(total-soma)<=1 && total>0) ? 'calc-box good' : 'calc-box bad';
+}
+['valor_total','valor_sinal','valor_poschave','saldo_devedor'].forEach(id =>
+  document.getElementById(id).addEventListener('input', atualizarCalc));
+
+// ---- VALIDAÇÃO ----
+function setErr(el,msg){ el.classList.add('invalid'); el.classList.remove('valid'); const e=el.parentElement.querySelector('.field-err'); if(e){e.textContent=msg;e.classList.add('show');} }
+function clearErr(el){ el.classList.remove('invalid'); el.classList.add('valid'); const e=el.parentElement.querySelector('.field-err'); if(e)e.classList.remove('show'); }
+
+// ---- IA: revisar particularidades ----
+document.getElementById('revisarIA').addEventListener('click', async () => {
+  const obs = document.getElementById('observacoes').value.trim();
+  const box = document.getElementById('iaResult');
+  if(!obs){ box.className='ia-result show'; box.innerHTML='<h5>Sem texto</h5>Escreva as particularidades antes de revisar.'; return; }
+  box.className='ia-result show'; box.innerHTML='<h5>Analisando…</h5>Revisando a negociação com IA.';
+  // Monta contexto dos valores atuais
+  const ctx = {
+    observacoes: obs,
+    valor_total: document.getElementById('valor_total').value,
+    soma_componentes: fmtBRL(somaComponentes()),
+    tem_sinal: document.querySelector('.pay-chip[data-comp="sinal"]').classList.contains('on'),
+    tem_parcelamento: document.querySelector('.pay-chip[data-comp="parcelamento"]').classList.contains('on'),
+    tem_baloes: document.querySelector('.pay-chip[data-comp="baloes"]').classList.contains('on'),
+    tem_poschave: document.querySelector('.pay-chip[data-comp="poschave"]').classList.contains('on'),
+    tem_banco: document.querySelector('.pay-chip[data-comp="banco"]').classList.contains('on')
+  };
+  try{
+    const resp = await fetch(WEBHOOK_IA, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(ctx) });
+    if(resp.ok){
+      const data = await resp.json().catch(()=>({}));
+      const texto = data.analise || data.text || data.resposta || JSON.stringify(data);
+      box.innerHTML = '<h5>🤖 Análise da IA</h5>' + texto.replace(/\n/g,'<br>');
+    } else {
+      box.innerHTML = '<h5>IA indisponível</h5>O webhook de IA ainda não está configurado. O campo de observações será enviado normalmente no contrato.';
+    }
+  }catch(e){
+    box.innerHTML = '<h5>IA indisponível</h5>Não foi possível conectar à IA agora. O texto de observações será enviado mesmo assim.';
+  }
+});
+
+// ---- MODAL ----
+function showModal(html){ document.getElementById('modal').innerHTML=html; document.getElementById('overlay').classList.add('show'); }
+function hideModal(){ document.getElementById('overlay').classList.remove('show'); }
+
+// ---- ETAPA 1 → só valida e avança (NÃO cria grupo) ----
+const etapa1 = ['empreendimento','corretor_nome','corretor_whatsapp','corretor_email','bloco','unidade_numero'];
+
+// valida os campos de identificação (empreendimento/corretor/unidade/cliente)
+function validarIdentificacao(){
+  let ok=true;
+  etapa1.forEach(id=>{ const el=document.getElementById(id); const v=el.value.trim();
+    if(!v){ setErr(el,'Obrigatório'); ok=false; }
+    else if(id==='corretor_whatsapp' && !validarTel(v)){ setErr(el,'Telefone inválido'); ok=false; }
+    else if(id==='corretor_email' && !validarEmail(v)){ setErr(el,'E-mail inválido'); ok=false; }
+    else clearErr(el);
+  });
+  return ok;
+}
+
+// ---- botão CRIAR GRUPO ----
+document.getElementById('createGroupBtn2').addEventListener('click', async () => {
+  const btnGrupo = document.getElementById('createGroupBtn2');
+  const btnContrato = document.getElementById('submitBtn');
+
+  // se já criou, não cria de novo
+  if(venda.groupJid){ showModal(`<div class="icon">✓</div><h3>Grupo já criado</h3><p>O grupo já foi criado. Pode gerar o contrato.</p><button class="btn-primary" onclick="hideModal()">Ok</button>`); return; }
+
+  // valida os campos de identificação antes de criar o grupo
+  if(!validarIdentificacao()){
+    showModal(`<div class="icon">⚠️</div><h3>Campos obrigatórios</h3><p>Preencha o empreendimento, o corretor e a unidade antes de criar o grupo.</p><button class="btn-primary" onclick="hideModal()">Ok</button>`);
+    window.scrollTo({top:0,behavior:'smooth'});
+    return;
+  }
+
+  // nome do grupo usa o nome do PRIMEIRO COMPRADOR
+  const primeiroCard = compradoresContainer.querySelector('.sub-card');
+  const clienteNome = primeiroCard ? (primeiroCard.querySelector('[data-f="nome"]').value.trim()) : '';
+  if(!clienteNome){
+    showModal(`<div class="icon">⚠️</div><h3>Informe o comprador</h3><p>Preencha ao menos o <b>nome do Comprador 1</b> antes de criar o grupo — é ele que nomeia o grupo.</p><button class="btn-primary" onclick="hideModal()">Ok</button>`);
+    return;
+  }
+
+  const emp = EMPREENDIMENTOS[selEmp.value];
+  const bloco = selBloco.value, unidade = selUnidade.value;
+  const tipo = tipologiaDe(selEmp.value, unidade);
+  venda.nome_grupo = `${emp.prefixo_grupo} - ${unidade} - ${bloco} - ${clienteNome.split(' ')[0].toUpperCase()}`;
+
+  const payload = {
+    empreendimento: selEmp.value, nome_empreendimento: emp.nome,
+    nome_grupo: venda.nome_grupo,
+    corretor_nome: document.getElementById('corretor_nome').value.trim(),
+    corretor_whatsapp: telLimpo(document.getElementById('corretor_whatsapp').value),
+    bloco, unidade_numero: unidade, tipologia_tipo: tipo?TIPOLOGIAS[tipo].nome:''
+  };
+
+  btnGrupo.disabled = true;
+  showModal(`<div class="spin"></div><h3>Criando grupo…</h3><p>Montando o grupo no WhatsApp com o corretor e a KRV.</p>`);
+  try{
+    const resp = await fetch(WEBHOOK_GRUPO, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(resp.ok){
+      const data = await resp.json().catch(()=>({}));
+      venda.groupJid = (data.data && data.data.id) || data.groupJid || data.id || null;
+      hideModal();
+      // grupo criado: trava o botão de grupo e libera o de contrato
+      btnGrupo.textContent = '✓ Grupo criado';
+      btnGrupo.classList.remove('btn-primary'); btnGrupo.classList.add('btn-ghost');
+      btnContrato.disabled = false;
+    } else {
+      const t=await resp.text();
+      btnGrupo.disabled = false;
+      showModal(`<div class="icon">⚠️</div><h3>Erro ao criar grupo</h3><ul class="errlist"><li>${t.slice(0,200)}</li></ul><button class="btn-primary" onclick="hideModal()">Voltar</button>`);
+    }
+  }catch(e){
+    btnGrupo.disabled = false;
+    showModal(`<div class="icon">❌</div><h3>Falha de conexão</h3><p>Não foi possível criar o grupo.</p><p style="font-size:12px;color:#888;margin-top:8px">Detalhe técnico: ${e.message||e}</p><p style="font-size:12px;color:#888">Webhook: ${WEBHOOK_GRUPO}</p><button class="btn-primary" onclick="hideModal()">Voltar</button>`);
+  }
+});
+
+// ---- ETAPA 2 → gera contrato ----
+document.getElementById('submitBtn').addEventListener('click', async () => {
+  const btnSubmit = document.getElementById('submitBtn');
+  // PROTEÇÃO ANTI-DUPLICAÇÃO: se já está enviando, ignora cliques extras
+  if (btnSubmit.dataset.enviando === '1') return;
+
+  // exige grupo criado antes de gerar contrato
+  if (!venda.groupJid) {
+    showModal(`<div class="icon">⚠️</div><h3>Crie o grupo primeiro</h3><p>Antes de gerar o contrato, clique em "Criar grupo no WhatsApp".</p><button class="btn-primary" onclick="hideModal()">Ok</button>`);
+    return;
+  }
+
+  const erros = [];
+
+  // valida compradores
+  const compradores = [];
+  compradoresContainer.querySelectorAll('.sub-card').forEach((card, i) => {
+    const get = f => { const el=card.querySelector(`[data-f="${f}"]`); return el?el.value.trim():''; };
+    // monta endereço completo a partir dos campos
+    const rua = get('rua'), numero = get('numero'), bairro = get('bairro'),
+          cidade = get('cidade'), cep = get('cep'), complemento = get('complemento');
+    let endereco = rua;
+    if(numero) endereco += ', nº ' + numero;
+    if(complemento) endereco += ', ' + complemento;
+    if(bairro) endereco += ', ' + bairro;
+    if(cidade) endereco += ', ' + cidade;
+    if(cep) endereco += ', CEP ' + cep;
+
+    const c = {
+      nome: get('nome'), cpf: get('cpf'), nacionalidade: get('nacionalidade'),
+      estado_civil: get('estado_civil'), profissao: get('profissao'),
+      whatsapp: get('whatsapp'), email: get('email'),
+      endereco: endereco,
+      // também envia os campos separados, caso o contrato queira usar
+      cep, rua, numero, bairro, cidade, complemento
+    };
+    // valida campos
+    if(!c.nome) erros.push(`Comprador ${i+1}: nome obrigatório`);
+    if(!validarCPF(c.cpf)) erros.push(`Comprador ${i+1}: CPF inválido`);
+    if(!c.estado_civil) erros.push(`Comprador ${i+1}: estado civil obrigatório`);
+    if(!c.profissao) erros.push(`Comprador ${i+1}: profissão obrigatória`);
+    if(!validarTel(c.whatsapp)) erros.push(`Comprador ${i+1}: WhatsApp inválido`);
+    if(!validarEmail(c.email)) erros.push(`Comprador ${i+1}: e-mail inválido`);
+    if(!cep) erros.push(`Comprador ${i+1}: CEP obrigatório`);
+    if(!rua) erros.push(`Comprador ${i+1}: rua obrigatória (preencha o CEP)`);
+    if(!numero) erros.push(`Comprador ${i+1}: número obrigatório`);
+    compradores.push(c);
+  });
+  if(compradores.length === 0) erros.push('Adicione ao menos 1 comprador');
+
+  // valida pagamento
+  const total = parseBRL(document.getElementById('valor_total').value);
+  if(!total) erros.push('Valor total obrigatório');
+  const dv = parseInt(document.getElementById('dia_vencimento').value);
+  if(!dv || dv<1 || dv>28) erros.push('Dia de vencimento entre 1 e 28');
+  const soma = somaComponentes();
+  if(Math.abs(total - soma) > 1) erros.push(`Soma dos componentes (${fmtBRL(soma)}) não bate com o total (${fmtBRL(total)})`);
+
+  if(erros.length){
+    showModal(`<div class="icon">⚠️</div><h3>Revise os dados</h3><ul class="errlist">${erros.map(e=>'<li>'+e+'</li>').join('')}</ul><button class="btn-primary" onclick="document.getElementById('overlay').classList.remove('show')">Entendi</button>`);
+    return;
+  }
+
+  // monta componentes de pagamento
+  const on = c => document.querySelector(`.pay-chip[data-comp="${c}"]`).classList.contains('on');
+  const baloes = [];
+  if(on('baloes')) baloesContainer.querySelectorAll('.sub-card').forEach(b => {
+    baloes.push({ valor: b.querySelector('[data-f="valor"]').value.trim(), data: b.querySelector('[data-f="data"]').value.trim() });
+  });
+
+  const pagamento = {
+    valor_total: document.getElementById('valor_total').value.trim(),
+    dia_vencimento: String(dv),
+    sinal: on('sinal') ? { valor: document.getElementById('valor_sinal').value.trim(), forma: document.getElementById('sinal_forma').value, parcelas: document.getElementById('sinal_parcelas').value.trim() } : null,
+    parcelamento: on('parcelamento') ? { valor: document.getElementById('valor_parcelamento').value.trim(), qtd: document.getElementById('qtd_parcelas').value.trim(), taxa: document.getElementById('taxa_mensal').value.trim(), parcela_manual: document.getElementById('valor_parcela_manual').value.trim() } : null,
+    parcelamento_incc: on('parcelamento_incc') ? { valor: document.getElementById('valor_parcelamento_incc').value.trim(), qtd: document.getElementById('qtd_parcelas_incc').value.trim(), correcao: '1% a.m. + INCC', incc_teto_aa: '8,5' } : null,
+    baloes: baloes.length ? baloes : null,
+    poschave: on('poschave') ? document.getElementById('valor_poschave').value.trim() : null,
+    saldo_devedor: on('banco') ? document.getElementById('saldo_devedor').value.trim() : null
+  };
+
+  const payload = {
+    empreendimento: selEmp.value,
+    bloco: selBloco.value, unidade_numero: selUnidade.value,
+    corretor_nome: document.getElementById('corretor_nome').value.trim(),
+    corretor_whatsapp: telLimpo(document.getElementById('corretor_whatsapp').value),
+    corretor_email: document.getElementById('corretor_email').value.trim(),
+    corretor_creci: document.getElementById('corretor_creci').value.trim(),
+    imobiliaria_nome: document.getElementById('imobiliaria_nome').value.trim(),
+    imobiliaria_creci: document.getElementById('imobiliaria_creci').value.trim(),
+    compradores: compradores,
+    pagamento: pagamento,
+    observacoes: document.getElementById('observacoes').value.trim(),
+    nome_grupo: venda.nome_grupo,
+    group_jid: venda.groupJid,
+    origem: 'site-krv', timestamp: new Date().toISOString()
+  };
+
+  // trava o botão a partir daqui (já passou nas validações)
+  btnSubmit.dataset.enviando = '1';
+  btnSubmit.disabled = true;
+
+  showModal(`<div class="spin"></div><h3>Gerando contrato…</h3><p>Criando documento, enviando ao D4Sign e disparando os links no WhatsApp.</p>`);
+  try{
+    const resp = await fetch(WEBHOOK_CONTRATO, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    if(resp.ok){
+      showModal(`<div class="icon">✅</div><h3>Contrato enviado!</h3><p>Documento gerado e enviado ao D4Sign. Os compradores e o corretor receberam o link de assinatura no WhatsApp e no e-mail.</p><button class="btn-primary" onclick="location.reload()">Nova venda</button>`);
+      // mantém travado — usuário recarrega para nova venda
+    } else {
+      const t=await resp.text();
+      showModal(`<div class="icon">⚠️</div><h3>Erro no envio</h3><ul class="errlist"><li>${t.slice(0,250)}</li></ul><button class="btn-primary" onclick="document.getElementById('overlay').classList.remove('show')">Voltar</button>`);
+      btnSubmit.dataset.enviando = '0'; btnSubmit.disabled = false; // libera para tentar de novo
+    }
+  }catch(e){
+    showModal(`<div class="icon">❌</div><h3>Falha de conexão</h3><p>Não foi possível contatar o servidor.</p><button class="btn-primary" onclick="document.getElementById('overlay').classList.remove('show')">Voltar</button>`);
+    btnSubmit.dataset.enviando = '0'; btnSubmit.disabled = false; // libera para tentar de novo
+  }
+});
