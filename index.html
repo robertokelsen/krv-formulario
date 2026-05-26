@@ -211,6 +211,7 @@
           <div class="pay-chip on" data-comp="sinal">Sinal</div>
           <div class="pay-chip" data-comp="parcelamento">Parcelamento (PRICE)</div>
           <div class="pay-chip" data-comp="parcelamento_incc">Parcelamento (1% + INCC)</div>
+          <div class="pay-chip" data-comp="parcelamento_sj70">Sem juros 70x (1%+INCC, teto 8,5%)</div>
           <div class="pay-chip" data-comp="baloes">Balões</div>
           <div class="pay-chip" data-comp="poschave">Pós-chave</div>
           <div class="pay-chip" data-comp="banco">Saldo bancário</div>
@@ -257,7 +258,24 @@
             <div>Parcela base: <span class="pmt" id="inccPmt">—</span></div>
             <div class="meta">
               <span>Correção: <b>1% a.m. + INCC</b></span>
-              <span class="hint">INCC absorvido até 8,5% a.a.; acima disso o excedente é repassado.</span>
+              <span class="hint">Correção plena pelo INCC (sem teto de absorção).</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="pay-section" id="sec_parcelamento_sj70">
+          <div class="sub-grid">
+            <div class="field"><label>Valor a parcelar (Sem juros)</label><input type="text" id="valor_parcelamento_sj70" placeholder="84.000,00" inputmode="decimal"></div>
+            <div class="field"><label>Nº de parcelas</label><input type="number" id="qtd_parcelas_sj70" placeholder="70" min="1" value="70"></div>
+          </div>
+          <div class="sub-grid">
+            <div class="field"><label>Teto INCC absorvido (% a.a.)</label><input type="text" id="teto_incc_sj70" placeholder="8,5" value="8,5" inputmode="decimal"></div>
+          </div>
+          <div class="price-result" id="sj70Result" style="display:none;">
+            <div>Parcela: <span class="pmt" id="sj70Pmt">—</span></div>
+            <div class="meta">
+              <span>Modelo: <b>Sem juros · 1% a.m. + INCC</b></span>
+              <span class="hint">Construtora absorve o INCC até o teto a.a.; só o excedente é repassado.</span>
             </div>
           </div>
         </div>
@@ -301,8 +319,8 @@
       </div>
       <div class="actions">
         <span></span>
-        <button class="btn-primary" id="createGroupBtn2">Criar grupo no WhatsApp</button>
-        <button class="btn-primary" id="submitBtn" disabled>Gerar contrato &amp; enviar</button>
+        <button class="btn-ghost" id="createGroupBtn2">Criar grupo no WhatsApp (opcional)</button>
+        <button class="btn-primary" id="submitBtn">Gerar contrato &amp; enviar</button>
       </div>
     </div>
   </div>
