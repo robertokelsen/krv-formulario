@@ -328,11 +328,25 @@ function atualizarPrice(){
 ['valor_parcelamento','qtd_parcelas','taxa_mensal','valor_parcela_manual'].forEach(id =>
   document.getElementById(id).addEventListener('input', () => { atualizarPrice(); atualizarCalc(); }));
 
+// ---- Parcelamento 1% + INCC em tempo real ----
+function atualizarIncc(){
+  const vf = parseBRL(document.getElementById('valor_parcelamento_incc').value);
+  const n = parseInt(document.getElementById('qtd_parcelas_incc').value);
+  const box = document.getElementById('inccResult');
+  if(!vf || !n){ box.style.display='none'; return; }
+  box.style.display='block';
+  // parcela base = valor ÷ nº parcelas (correção 1%+INCC é aplicada mês a mês depois)
+  document.getElementById('inccPmt').textContent = fmtBRL(vf / n);
+}
+['valor_parcelamento_incc','qtd_parcelas_incc'].forEach(id =>
+  document.getElementById(id).addEventListener('input', () => { atualizarIncc(); atualizarCalc(); }));
+
 // ---- CÁLCULO DA SOMA (valor de face) ----
 function somaComponentes(){
   let soma = 0;
   if(document.querySelector('.pay-chip[data-comp="sinal"]').classList.contains('on')) soma += parseBRL(document.getElementById('valor_sinal').value);
   if(document.querySelector('.pay-chip[data-comp="parcelamento"]').classList.contains('on')) soma += parseBRL(document.getElementById('valor_parcelamento').value);
+  if(document.querySelector('.pay-chip[data-comp="parcelamento_incc"]').classList.contains('on')) soma += parseBRL(document.getElementById('valor_parcelamento_incc').value);
   if(document.querySelector('.pay-chip[data-comp="poschave"]').classList.contains('on')) soma += parseBRL(document.getElementById('valor_poschave').value);
   if(document.querySelector('.pay-chip[data-comp="banco"]').classList.contains('on')) soma += parseBRL(document.getElementById('saldo_devedor').value);
   if(document.querySelector('.pay-chip[data-comp="baloes"]').classList.contains('on')){
@@ -539,6 +553,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     dia_vencimento: String(dv),
     sinal: on('sinal') ? { valor: document.getElementById('valor_sinal').value.trim(), forma: document.getElementById('sinal_forma').value, parcelas: document.getElementById('sinal_parcelas').value.trim() } : null,
     parcelamento: on('parcelamento') ? { valor: document.getElementById('valor_parcelamento').value.trim(), qtd: document.getElementById('qtd_parcelas').value.trim(), taxa: document.getElementById('taxa_mensal').value.trim(), parcela_manual: document.getElementById('valor_parcela_manual').value.trim() } : null,
+    parcelamento_incc: on('parcelamento_incc') ? { valor: document.getElementById('valor_parcelamento_incc').value.trim(), qtd: document.getElementById('qtd_parcelas_incc').value.trim(), correcao: '1% a.m. + INCC', incc_teto_aa: '8,5' } : null,
     baloes: baloes.length ? baloes : null,
     poschave: on('poschave') ? document.getElementById('valor_poschave').value.trim() : null,
     saldo_devedor: on('banco') ? document.getElementById('saldo_devedor').value.trim() : null
