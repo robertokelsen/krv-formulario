@@ -192,87 +192,6 @@ window.removerComprador = function(idx){
 document.getElementById('addComprador').addEventListener('click', () => criarComprador(false));
 criarComprador(true); // primeiro comprador
 
-// ==== DADOS FICTÍCIOS PARA TESTE ====
-function gerarCPFvalido(){
-  const n = Array.from({length:9}, ()=>Math.floor(Math.random()*10));
-  let s=0; for(let i=0;i<9;i++) s+=n[i]*(10-i);
-  let d1=(s*10)%11; if(d1===10) d1=0; n.push(d1);
-  s=0; for(let i=0;i<10;i++) s+=n[i]*(11-i);
-  let d2=(s*10)%11; if(d2===10) d2=0; n.push(d2);
-  return n.join('');
-}
-function rnd(arr){ return arr[Math.floor(Math.random()*arr.length)]; }
-function gerarTel(){ return '(85) 9'+(Math.floor(1000+Math.random()*9000))+'-'+(Math.floor(1000+Math.random()*9000)); }
-function disparar(el,ev){ el.dispatchEvent(new Event(ev,{bubbles:true})); }
-
-const FAKE = {
-  nomes:['Pedro Henrique Silva Sales','Maria Clara Souza Lima','João Vitor Almeida','Ana Beatriz Costa','Lucas Gabriel Ferreira','Mariana Oliveira Rocha','Rafael Santos Mota','Juliana Pereira Dias','Carlos Eduardo Nunes','Fernanda Ribeiro Gomes'],
-  profissoes:['Engenheiro','Professora','Médico','Advogada','Comerciante','Analista','Enfermeira','Vendedor','Contadora','Autônomo'],
-  corretores:['Messias Oliveira','Caio Gomes','Aldenilson Dutra','Trend Imob','Elite Imobiliária','Marca Imóveis'],
-  ruas:['Rua das Flores','Av. Brasil','Rua João Pessoa','Av. dos Expedicionários','Rua Castro Alves'],
-  bairros:['Centro','Jereissati','Luzardo Viana','Pajuçara','Maracananzinho'],
-  estados_civis:['solteiro(a)','casado(a)','divorciado(a)','união estável']
-};
-
-function preencherComprador(card){
-  const set=(f,v)=>{ const el=card.querySelector(`[data-f="${f}"]`); if(!el) return; el.value=v; disparar(el,'input'); disparar(el,'change'); };
-  const nome = rnd(FAKE.nomes);
-  const primeiroEmail = nome.toLowerCase().split(' ')[0]+Math.floor(Math.random()*900);
-  set('nome', nome);
-  set('cpf', maskCPFval(gerarCPFvalido()));
-  set('estado_civil', rnd(FAKE.estados_civis));
-  set('profissao', rnd(FAKE.profissoes));
-  set('whatsapp', gerarTel());
-  set('email', primeiroEmail+'@teste.com');
-  // endereço (preenche direto, sem depender do ViaCEP)
-  set('cep','60000-000');
-  set('numero', String(Math.floor(100+Math.random()*900)));
-  set('rua', rnd(FAKE.ruas));
-  set('bairro', rnd(FAKE.bairros));
-  set('cidade','Maracanaú/CE');
-}
-
-document.getElementById('fillFakeBtn').addEventListener('click', () => {
-  // 1. empreendimento aleatório → dispara change (popula blocos)
-  const emps = Object.keys(EMPREENDIMENTOS);
-  selEmp.value = rnd(emps);
-  disparar(selEmp,'change');
-
-  // 2. bloco aleatório → dispara change (popula unidades)
-  const cfg = EMPREENDIMENTOS[selEmp.value];
-  selBloco.value = rnd(cfg.blocos);
-  disparar(selBloco,'change');
-
-  // 3. unidade aleatória (entre as opções já populadas)
-  const opts = Array.from(selUnidade.options).filter(o=>o.value);
-  if(opts.length){ selUnidade.value = rnd(opts).value; disparar(selUnidade,'change'); }
-
-  // 4. corretor
-  const corr = rnd(FAKE.nomes);
-  document.getElementById('corretor_nome').value = rnd(FAKE.corretores);
-  document.getElementById('corretor_whatsapp').value = gerarTel();
-  document.getElementById('corretor_email').value = 'corretor'+Math.floor(Math.random()*900)+'@teste.com';
-  document.getElementById('corretor_creci').value = String(Math.floor(10000+Math.random()*90000))+'-F';
-
-  // 5. compradores existentes
-  compradoresContainer.querySelectorAll('.sub-card').forEach(preencherComprador);
-
-  // 6. valores de pagamento
-  const total = 250000 + Math.floor(Math.random()*40)*1000;
-  const sinal = 20000;
-  const parcelar = total - sinal;
-  const setVal = (id,v)=>{ const el=document.getElementById(id); if(el){ el.value=v; disparar(el,'input'); } };
-  setVal('valor_total', total.toLocaleString('pt-BR',{minimumFractionDigits:2}));
-  setVal('valor_sinal', sinal.toLocaleString('pt-BR',{minimumFractionDigits:2}));
-  // ativa parcelamento (PRICE) e preenche
-  const chipParc = document.querySelector('.pay-chip[data-comp="parcelamento"]');
-  if(chipParc && !chipParc.classList.contains('on')) chipParc.click();
-  setVal('valor_parcelamento', parcelar.toLocaleString('pt-BR',{minimumFractionDigits:2}));
-  setVal('qtd_parcelas', '60');
-
-  showModal(`<div class="icon">🎲</div><h3>Dados de teste preenchidos</h3><p>Empreendimento, corretor, unidade e compradores foram preenchidos com dados fictícios. Revise e teste o fluxo.</p><button class="btn-primary" onclick="hideModal()">Ok</button>`);
-});
-// ==== FIM DADOS FICTÍCIOS ====
 
 
 // ---- TOGGLES de pagamento ----
@@ -498,21 +417,17 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
   // PROTEÇÃO ANTI-DUPLICAÇÃO: se já está enviando, ignora cliques extras
   if (btnSubmit.dataset.enviando === '1') return;
 
-  // GRUPO É OPCIONAL: o contrato pode ser gerado sem grupo (cria-se depois em lote).
-  // Mas ainda exigimos a identificação (empreendimento/corretor/unidade) válida.
+  // exige grupo criado antes de gerar contrato
   if(!validarIdentificacao()){
     showModal(`<div class="icon">⚠️</div><h3>Campos obrigatórios</h3><p>Preencha o empreendimento, o corretor e a unidade antes de gerar o contrato.</p><button class="btn-primary" onclick="hideModal()">Ok</button>`);
     return;
   }
-
-  // aviso não-bloqueante: gerar sem grupo é permitido, mas lembra do backfill
-  if(!venda.groupJid && !window._avisouSemGrupo){
-    window._avisouSemGrupo = true;
-    showModal(`<div class="icon">ℹ️</div><h3>Gerar sem grupo?</h3><p>O contrato será gerado e os links de assinatura irão para o <b>WhatsApp privado</b> do corretor e dos compradores.</p><p style="margin-top:8px">O grupo poderá ser criado depois, em lote, pelo backfill (<code>vincular-criar-grupos</code>).</p><button class="btn-primary" onclick="hideModal();document.getElementById('submitBtn').click()">Gerar assim mesmo</button> <button class="btn-ghost" onclick="hideModal()">Cancelar</button>`);
+  if (!venda.groupJid) {
+    showModal(`<div class="icon">⚠️</div><h3>Crie o grupo primeiro</h3><p>Antes de gerar o contrato, clique em "Criar grupo no WhatsApp".</p><button class="btn-primary" onclick="hideModal()">Ok</button>`);
     return;
   }
 
-  // garante o nome do grupo mesmo sem grupo criado (usado na planilha e no backfill)
+  // garante o nome do grupo (usado na planilha)
   if(!venda.nome_grupo){
     const _emp = EMPREENDIMENTOS[selEmp.value];
     const _primeiroCard = compradoresContainer.querySelector('.sub-card');
