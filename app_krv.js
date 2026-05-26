@@ -459,7 +459,7 @@ document.getElementById('createGroupBtn2').addEventListener('click', async () =>
   const emp = EMPREENDIMENTOS[selEmp.value];
   const bloco = selBloco.value, unidade = selUnidade.value;
   const tipo = tipologiaDe(selEmp.value, unidade);
-  venda.nome_grupo = `${emp.prefixo_grupo} - ${unidade} - ${bloco} - ${clienteNome.split(' ')[0].toUpperCase()}`;
+  venda.nome_grupo = `${emp.prefixo_grupo} - ${unidade} - BLOCO ${bloco} - ${clienteNome.split(' ')[0].toUpperCase()}`;
 
   const payload = {
     empreendimento: selEmp.value, nome_empreendimento: emp.nome,
@@ -518,7 +518,7 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     const _primeiroCard = compradoresContainer.querySelector('.sub-card');
     const _clienteNome = _primeiroCard ? (_primeiroCard.querySelector('[data-f="nome"]').value.trim()) : '';
     if(_emp && _clienteNome){
-      venda.nome_grupo = `${_emp.prefixo_grupo} - ${selUnidade.value} - ${selBloco.value} - ${_clienteNome.split(' ')[0].toUpperCase()}`;
+      venda.nome_grupo = `${_emp.prefixo_grupo} - ${selUnidade.value} - BLOCO ${selBloco.value} - ${_clienteNome.split(' ')[0].toUpperCase()}`;
     }
   }
 
