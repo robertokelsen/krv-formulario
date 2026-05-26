@@ -341,12 +341,26 @@ function atualizarIncc(){
 ['valor_parcelamento_incc','qtd_parcelas_incc'].forEach(id =>
   document.getElementById(id).addEventListener('input', () => { atualizarIncc(); atualizarCalc(); }));
 
+// ---- Parcelamento SEM JUROS 70x (1%+INCC, teto absorvido) em tempo real ----
+function atualizarSj70(){
+  const vf = parseBRL(document.getElementById('valor_parcelamento_sj70').value);
+  const n = parseInt(document.getElementById('qtd_parcelas_sj70').value);
+  const box = document.getElementById('sj70Result');
+  if(!vf || !n){ box.style.display='none'; return; }
+  box.style.display='block';
+  // sem juros: parcela = valor ÷ nº (a correção 1%+INCC, limitada pelo teto, é aplicada mês a mês)
+  document.getElementById('sj70Pmt').textContent = fmtBRL(vf / n);
+}
+['valor_parcelamento_sj70','qtd_parcelas_sj70','teto_incc_sj70'].forEach(id =>
+  document.getElementById(id).addEventListener('input', () => { atualizarSj70(); atualizarCalc(); }));
+
 // ---- CÁLCULO DA SOMA (valor de face) ----
 function somaComponentes(){
   let soma = 0;
   if(document.querySelector('.pay-chip[data-comp="sinal"]').classList.contains('on')) soma += parseBRL(document.getElementById('valor_sinal').value);
   if(document.querySelector('.pay-chip[data-comp="parcelamento"]').classList.contains('on')) soma += parseBRL(document.getElementById('valor_parcelamento').value);
   if(document.querySelector('.pay-chip[data-comp="parcelamento_incc"]').classList.contains('on')) soma += parseBRL(document.getElementById('valor_parcelamento_incc').value);
+  if(document.querySelector('.pay-chip[data-comp="parcelamento_sj70"]').classList.contains('on')) soma += parseBRL(document.getElementById('valor_parcelamento_sj70').value);
   if(document.querySelector('.pay-chip[data-comp="poschave"]').classList.contains('on')) soma += parseBRL(document.getElementById('valor_poschave').value);
   if(document.querySelector('.pay-chip[data-comp="banco"]').classList.contains('on')) soma += parseBRL(document.getElementById('saldo_devedor').value);
   if(document.querySelector('.pay-chip[data-comp="baloes"]').classList.contains('on')){
@@ -484,10 +498,28 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
   // PROTEÇÃO ANTI-DUPLICAÇÃO: se já está enviando, ignora cliques extras
   if (btnSubmit.dataset.enviando === '1') return;
 
-  // exige grupo criado antes de gerar contrato
-  if (!venda.groupJid) {
-    showModal(`<div class="icon">⚠️</div><h3>Crie o grupo primeiro</h3><p>Antes de gerar o contrato, clique em "Criar grupo no WhatsApp".</p><button class="btn-primary" onclick="hideModal()">Ok</button>`);
+  // GRUPO É OPCIONAL: o contrato pode ser gerado sem grupo (cria-se depois em lote).
+  // Mas ainda exigimos a identificação (empreendimento/corretor/unidade) válida.
+  if(!validarIdentificacao()){
+    showModal(`<div class="icon">⚠️</div><h3>Campos obrigatórios</h3><p>Preencha o empreendimento, o corretor e a unidade antes de gerar o contrato.</p><button class="btn-primary" onclick="hideModal()">Ok</button>`);
     return;
+  }
+
+  // aviso não-bloqueante: gerar sem grupo é permitido, mas lembra do backfill
+  if(!venda.groupJid && !window._avisouSemGrupo){
+    window._avisouSemGrupo = true;
+    showModal(`<div class="icon">ℹ️</div><h3>Gerar sem grupo?</h3><p>O contrato será gerado e os links de assinatura irão para o <b>WhatsApp privado</b> do corretor e dos compradores.</p><p style="margin-top:8px">O grupo poderá ser criado depois, em lote, pelo backfill (<code>vincular-criar-grupos</code>).</p><button class="btn-primary" onclick="hideModal();document.getElementById('submitBtn').click()">Gerar assim mesmo</button> <button class="btn-ghost" onclick="hideModal()">Cancelar</button>`);
+    return;
+  }
+
+  // garante o nome do grupo mesmo sem grupo criado (usado na planilha e no backfill)
+  if(!venda.nome_grupo){
+    const _emp = EMPREENDIMENTOS[selEmp.value];
+    const _primeiroCard = compradoresContainer.querySelector('.sub-card');
+    const _clienteNome = _primeiroCard ? (_primeiroCard.querySelector('[data-f="nome"]').value.trim()) : '';
+    if(_emp && _clienteNome){
+      venda.nome_grupo = `${_emp.prefixo_grupo} - ${selUnidade.value} - ${selBloco.value} - ${_clienteNome.split(' ')[0].toUpperCase()}`;
+    }
   }
 
   const erros = [];
@@ -553,7 +585,8 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
     dia_vencimento: String(dv),
     sinal: on('sinal') ? { valor: document.getElementById('valor_sinal').value.trim(), forma: document.getElementById('sinal_forma').value, parcelas: document.getElementById('sinal_parcelas').value.trim() } : null,
     parcelamento: on('parcelamento') ? { valor: document.getElementById('valor_parcelamento').value.trim(), qtd: document.getElementById('qtd_parcelas').value.trim(), taxa: document.getElementById('taxa_mensal').value.trim(), parcela_manual: document.getElementById('valor_parcela_manual').value.trim() } : null,
-    parcelamento_incc: on('parcelamento_incc') ? { valor: document.getElementById('valor_parcelamento_incc').value.trim(), qtd: document.getElementById('qtd_parcelas_incc').value.trim(), correcao: '1% a.m. + INCC', incc_teto_aa: '8,5' } : null,
+    parcelamento_incc: on('parcelamento_incc') ? { valor: document.getElementById('valor_parcelamento_incc').value.trim(), qtd: document.getElementById('qtd_parcelas_incc').value.trim(), correcao: '1% a.m. + INCC' } : null,
+    parcelamento_sj70: on('parcelamento_sj70') ? { valor: document.getElementById('valor_parcelamento_sj70').value.trim(), qtd: document.getElementById('qtd_parcelas_sj70').value.trim(), correcao: '1% a.m. + INCC', sem_juros: true, incc_teto_aa: (document.getElementById('teto_incc_sj70').value.trim() || '8,5') } : null,
     baloes: baloes.length ? baloes : null,
     poschave: on('poschave') ? document.getElementById('valor_poschave').value.trim() : null,
     saldo_devedor: on('banco') ? document.getElementById('saldo_devedor').value.trim() : null
