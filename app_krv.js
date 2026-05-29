@@ -192,8 +192,6 @@ window.removerComprador = function(idx){
 document.getElementById('addComprador').addEventListener('click', () => criarComprador(false));
 criarComprador(true); // primeiro comprador
 
-
-
 // ---- TOGGLES de pagamento ----
 document.querySelectorAll('.pay-chip').forEach(chip => {
   chip.addEventListener('click', () => {
@@ -206,8 +204,52 @@ document.querySelectorAll('.pay-chip').forEach(chip => {
 
 // sinal parcelado mostra qtd
 document.getElementById('sinal_forma').addEventListener('change', e => {
-  document.getElementById('sinal_parc_qtd_wrap').style.display = e.target.value==='parcelado' ? 'flex' : 'none';
+  const parc = e.target.value==='parcelado';
+  document.getElementById('sinal_parc_wrap').style.display = parc ? 'block' : 'none';
+  // ao abrir parcelado pela 1ª vez, cria uma parcela inicial
+  if(parc && sinalParcelasContainer.children.length===0) criarSinalParcela(true);
+  atualizarSinalParc();
+  atualizarCalc();
 });
+
+// ---- SINAL PARCELADO (parcelas individuais: valor + data) ----
+let sinalParcCount = 0;
+const sinalParcelasContainer = document.getElementById('sinalParcelasContainer');
+function criarSinalParcela(primeira){
+  sinalParcCount++; const idx=sinalParcCount;
+  const div=document.createElement('div'); div.className='sub-card'; div.dataset.sinalParc=idx;
+  div.innerHTML=`<div class="sub-card-head"><h4>Parcela ${idx}</h4><button type="button" class="btn-danger btn-sm" onclick="removerSinalParcela(${idx})">Remover</button></div>
+    <div class="sub-grid">
+      <div class="field"><label>Valor</label><input type="text" data-f="valor" class="sinalp-val" placeholder="5.000,00" inputmode="decimal"></div>
+      <div class="field"><label>Data / vencimento</label><input type="text" data-f="data" class="sinalp-data" placeholder="${primeira?'no ato':'jan/2026'}" value="${primeira?'no ato':''}"></div>
+    </div>`;
+  sinalParcelasContainer.appendChild(div);
+  div.querySelector('.sinalp-val').addEventListener('input', () => { atualizarSinalParc(); atualizarCalc(); });
+}
+window.removerSinalParcela = function(idx){ const el=sinalParcelasContainer.querySelector(`[data-sinal-parc="${idx}"]`); if(el){el.remove(); atualizarSinalParc(); atualizarCalc();} };
+document.getElementById('addSinalParcela').addEventListener('click', () => criarSinalParcela(false));
+
+function somaSinalParcelas(){
+  let s=0; sinalParcelasContainer.querySelectorAll('.sinalp-val').forEach(i => s += parseBRL(i.value)); return s;
+}
+function atualizarSinalParc(){
+  const box=document.getElementById('sinalParcResult');
+  const forma=document.getElementById('sinal_forma').value;
+  if(forma!=='parcelado'){ box.style.display='none'; return; }
+  box.style.display='block';
+  const somaP = somaSinalParcelas();
+  const totalSinal = parseBRL(document.getElementById('valor_sinal').value);
+  document.getElementById('sinalParcSoma').textContent = fmtBRL(somaP);
+  const aviso=document.getElementById('sinalParcAviso');
+  if(totalSinal>0 && Math.abs(somaP-totalSinal)>1){
+    aviso.textContent = `⚠️ não bate com o sinal total (${fmtBRL(totalSinal)})`;
+    aviso.style.color = '#b91c1c';
+  } else {
+    aviso.textContent = somaP>0 ? '✓ confere com o sinal total' : '';
+    aviso.style.color = '#15803d';
+  }
+}
+document.getElementById('valor_sinal').addEventListener('input', () => { atualizarSinalParc(); atualizarCalc(); });
 
 // ---- BALÕES ----
 let balaoCount = 0;
@@ -227,25 +269,31 @@ window.removerBalao = function(idx){ const el=baloesContainer.querySelector(`[da
 document.getElementById('addBalao').addEventListener('click', criarBalao);
 
 // ---- PRICE em tempo real ----
+const BONUS_ADIMPLENCIA_VALOR = 20000;
 function atualizarPrice(){
-  const vf = parseBRL(document.getElementById('valor_parcelamento').value);
+  const vfBruto = parseBRL(document.getElementById('valor_parcelamento').value);
   const n = parseInt(document.getElementById('qtd_parcelas').value);
   const taxa = parseBRL(document.getElementById('taxa_mensal').value);
   const manual = parseBRL(document.getElementById('valor_parcela_manual').value);
+  const bonus = document.getElementById('bonus_adimplencia').checked;
   const box = document.getElementById('priceResult');
-  if(!vf || !n){ box.style.display='none'; return; }
+  if(!vfBruto || !n){ box.style.display='none'; return; }
   box.style.display='block';
+  // Bônus adimplência: abate R$ 20.000 do valor antes de parcelar
+  const vf = bonus ? Math.max(0, vfBruto - BONUS_ADIMPLENCIA_VALOR) : vfBruto;
   let pmt, nota='';
   if(manual > 0){ pmt = manual; nota = '(parcela informada manualmente)'; }
   else { pmt = calcPRICE(vf, taxa, n); nota = `@ ${taxa}% a.m.`; }
   const total = pmt * n;
+  const bonusNota = bonus ? ` — bônus R$ 20.000 abatido (perde em caso de atraso)` : '';
   document.getElementById('pricePmt').textContent = fmtBRL(pmt);
   document.getElementById('priceTotal').textContent = fmtBRL(total);
   document.getElementById('priceJuros').textContent = fmtBRL(total - vf);
-  document.getElementById('priceManualNote').textContent = nota;
+  document.getElementById('priceManualNote').textContent = nota + bonusNota;
 }
-['valor_parcelamento','qtd_parcelas','taxa_mensal','valor_parcela_manual'].forEach(id =>
+['valor_parcelamento','qtd_parcelas','taxa_mensal','valor_parcela_manual','bonus_adimplencia'].forEach(id =>
   document.getElementById(id).addEventListener('input', () => { atualizarPrice(); atualizarCalc(); }));
+document.getElementById('bonus_adimplencia').addEventListener('change', () => { atualizarPrice(); atualizarCalc(); });
 
 // ---- Parcelamento 1% + INCC em tempo real ----
 function atualizarIncc(){
@@ -260,18 +308,19 @@ function atualizarIncc(){
 ['valor_parcelamento_incc','qtd_parcelas_incc'].forEach(id =>
   document.getElementById(id).addEventListener('input', () => { atualizarIncc(); atualizarCalc(); }));
 
-// ---- Parcelamento SEM JUROS 70x (1%+INCC, teto absorvido) em tempo real ----
-function atualizarSj70(){
-  const vf = parseBRL(document.getElementById('valor_parcelamento_sj70').value);
-  const n = parseInt(document.getElementById('qtd_parcelas_sj70').value);
-  const box = document.getElementById('sj70Result');
+// ---- Parcelamento Sem juros 70x (INCC absorvido até 8,5% a.a.) ----
+function atualizarSemJuros(){
+  const vf = parseBRL(document.getElementById('valor_parcelamento_sem_juros').value);
+  const n = parseInt(document.getElementById('qtd_parcelas_sem_juros').value);
+  const box = document.getElementById('semJurosResult');
   if(!vf || !n){ box.style.display='none'; return; }
   box.style.display='block';
-  // sem juros: parcela = valor ÷ nº (a correção 1%+INCC, limitada pelo teto, é aplicada mês a mês)
-  document.getElementById('sj70Pmt').textContent = fmtBRL(vf / n);
+  const pmt = vf / n;
+  document.getElementById('semJurosPmt').textContent = fmtBRL(pmt);
+  document.getElementById('semJurosTotal').textContent = fmtBRL(vf);
 }
-['valor_parcelamento_sj70','qtd_parcelas_sj70','teto_incc_sj70'].forEach(id =>
-  document.getElementById(id).addEventListener('input', () => { atualizarSj70(); atualizarCalc(); }));
+['valor_parcelamento_sem_juros','qtd_parcelas_sem_juros'].forEach(id =>
+  document.getElementById(id).addEventListener('input', () => { atualizarSemJuros(); atualizarCalc(); }));
 
 // ---- CÁLCULO DA SOMA (valor de face) ----
 function somaComponentes(){
@@ -279,7 +328,7 @@ function somaComponentes(){
   if(document.querySelector('.pay-chip[data-comp="sinal"]').classList.contains('on')) soma += parseBRL(document.getElementById('valor_sinal').value);
   if(document.querySelector('.pay-chip[data-comp="parcelamento"]').classList.contains('on')) soma += parseBRL(document.getElementById('valor_parcelamento').value);
   if(document.querySelector('.pay-chip[data-comp="parcelamento_incc"]').classList.contains('on')) soma += parseBRL(document.getElementById('valor_parcelamento_incc').value);
-  if(document.querySelector('.pay-chip[data-comp="parcelamento_sj70"]').classList.contains('on')) soma += parseBRL(document.getElementById('valor_parcelamento_sj70').value);
+  if(document.querySelector('.pay-chip[data-comp="parcelamento_sem_juros"]').classList.contains('on')) soma += parseBRL(document.getElementById('valor_parcelamento_sem_juros').value);
   if(document.querySelector('.pay-chip[data-comp="poschave"]').classList.contains('on')) soma += parseBRL(document.getElementById('valor_poschave').value);
   if(document.querySelector('.pay-chip[data-comp="banco"]').classList.contains('on')) soma += parseBRL(document.getElementById('saldo_devedor').value);
   if(document.querySelector('.pay-chip[data-comp="baloes"]').classList.contains('on')){
@@ -336,6 +385,18 @@ document.getElementById('revisarIA').addEventListener('click', async () => {
 // ---- MODAL ----
 function showModal(html){ document.getElementById('modal').innerHTML=html; document.getElementById('overlay').classList.add('show'); }
 function hideModal(){ document.getElementById('overlay').classList.remove('show'); }
+// modal de confirmação Sim/Não — retorna Promise<boolean>
+function confirmar(titulo, texto){
+  return new Promise(resolve => {
+    showModal(`<div class="icon">❓</div><h3>${titulo}</h3><p>${texto}</p>
+      <div style="display:flex;gap:10px;margin-top:16px;justify-content:center">
+        <button class="btn-ghost" id="confNao">Cancelar</button>
+        <button class="btn-primary" id="confSim">Continuar</button>
+      </div>`);
+    document.getElementById('confSim').onclick = ()=>{ hideModal(); resolve(true); };
+    document.getElementById('confNao').onclick = ()=>{ hideModal(); resolve(false); };
+  });
+}
 
 // ---- ETAPA 1 → só valida e avança (NÃO cria grupo) ----
 const etapa1 = ['empreendimento','corretor_nome','corretor_whatsapp','corretor_email','bloco','unidade_numero'];
@@ -343,7 +404,12 @@ const etapa1 = ['empreendimento','corretor_nome','corretor_whatsapp','corretor_e
 // valida os campos de identificação (empreendimento/corretor/unidade/cliente)
 function validarIdentificacao(){
   let ok=true;
+  const corretorNome = document.getElementById('corretor_nome').value.trim();
+  const vendaDireta = corretorNome === ''; // sem corretor = venda direta
   etapa1.forEach(id=>{ const el=document.getElementById(id); const v=el.value.trim();
+    // campos do corretor são opcionais em venda direta
+    const ehCampoCorretor = id.startsWith('corretor_');
+    if(ehCampoCorretor && vendaDireta){ clearErr(el); return; }
     if(!v){ setErr(el,'Obrigatório'); ok=false; }
     else if(id==='corretor_whatsapp' && !validarTel(v)){ setErr(el,'Telefone inválido'); ok=false; }
     else if(id==='corretor_email' && !validarEmail(v)){ setErr(el,'E-mail inválido'); ok=false; }
@@ -378,7 +444,14 @@ document.getElementById('createGroupBtn2').addEventListener('click', async () =>
   const emp = EMPREENDIMENTOS[selEmp.value];
   const bloco = selBloco.value, unidade = selUnidade.value;
   const tipo = tipologiaDe(selEmp.value, unidade);
-  venda.nome_grupo = `${emp.prefixo_grupo} - ${unidade} - BLOCO ${bloco} - ${clienteNome.split(' ')[0].toUpperCase()}`;
+  venda.nome_grupo = `${emp.prefixo_grupo} - ${unidade} - ${bloco} - ${clienteNome.split(' ')[0].toUpperCase()}`;
+
+  // venda direta? (sem corretor) — avisa que o grupo será só com a KRV
+  const corretorNome = document.getElementById('corretor_nome').value.trim();
+  if(!corretorNome){
+    const segue = await confirmar('Venda sem corretor', 'Nenhum corretor foi informado. O grupo será criado apenas com a KRV. Deseja continuar?');
+    if(!segue) return;
+  }
 
   const payload = {
     empreendimento: selEmp.value, nome_empreendimento: emp.nome,
@@ -394,7 +467,14 @@ document.getElementById('createGroupBtn2').addEventListener('click', async () =>
     const resp = await fetch(WEBHOOK_GRUPO, {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     if(resp.ok){
       const data = await resp.json().catch(()=>({}));
-      venda.groupJid = (data.data && data.data.id) || data.groupJid || data.id || null;
+      const jid = (data.data && data.data.id) || data.groupJid || data.id || '';
+      if(!jid || !String(jid).includes('@g.us')){
+        // grupo não retornou JID válido — NÃO libera o contrato
+        btnGrupo.disabled = false;
+        showModal(`<div class="icon">⚠️</div><h3>Grupo não confirmado</h3><p>O servidor respondeu, mas não retornou o identificador do grupo (JID). Isso costuma indicar que a instância do WhatsApp está desconectada ou o número do corretor é inválido.</p><p style="font-size:12px;color:#888;margin-top:8px">Verifique a Evolution e tente de novo.</p><button class="btn-primary" onclick="hideModal()">Voltar</button>`);
+        return;
+      }
+      venda.groupJid = jid;
       hideModal();
       // grupo criado: trava o botão de grupo e libera o de contrato
       btnGrupo.textContent = '✓ Grupo criado';
@@ -418,23 +498,9 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
   if (btnSubmit.dataset.enviando === '1') return;
 
   // exige grupo criado antes de gerar contrato
-  if(!validarIdentificacao()){
-    showModal(`<div class="icon">⚠️</div><h3>Campos obrigatórios</h3><p>Preencha o empreendimento, o corretor e a unidade antes de gerar o contrato.</p><button class="btn-primary" onclick="hideModal()">Ok</button>`);
-    return;
-  }
   if (!venda.groupJid) {
     showModal(`<div class="icon">⚠️</div><h3>Crie o grupo primeiro</h3><p>Antes de gerar o contrato, clique em "Criar grupo no WhatsApp".</p><button class="btn-primary" onclick="hideModal()">Ok</button>`);
     return;
-  }
-
-  // garante o nome do grupo (usado na planilha)
-  if(!venda.nome_grupo){
-    const _emp = EMPREENDIMENTOS[selEmp.value];
-    const _primeiroCard = compradoresContainer.querySelector('.sub-card');
-    const _clienteNome = _primeiroCard ? (_primeiroCard.querySelector('[data-f="nome"]').value.trim()) : '';
-    if(_emp && _clienteNome){
-      venda.nome_grupo = `${_emp.prefixo_grupo} - ${selUnidade.value} - BLOCO ${selBloco.value} - ${_clienteNome.split(' ')[0].toUpperCase()}`;
-    }
   }
 
   const erros = [];
@@ -483,6 +549,20 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
   const soma = somaComponentes();
   if(Math.abs(total - soma) > 1) erros.push(`Soma dos componentes (${fmtBRL(soma)}) não bate com o total (${fmtBRL(total)})`);
 
+  // valida sinal parcelado: parcelas devem somar o valor do sinal
+  if(on('sinal') && document.getElementById('sinal_forma').value==='parcelado'){
+    const totalSinal = parseBRL(document.getElementById('valor_sinal').value);
+    const somaP = somaSinalParcelas();
+    const nParc = sinalParcelasContainer.querySelectorAll('.sub-card').length;
+    if(nParc===0) erros.push('Sinal parcelado: adicione ao menos 1 parcela');
+    if(Math.abs(totalSinal - somaP) > 1) erros.push(`Sinal: soma das parcelas (${fmtBRL(somaP)}) não bate com o valor do sinal (${fmtBRL(totalSinal)})`);
+    // cada parcela precisa de valor e data
+    sinalParcelasContainer.querySelectorAll('.sub-card').forEach((p,i)=>{
+      if(!parseBRL(p.querySelector('[data-f="valor"]').value)) erros.push(`Sinal parcela ${i+1}: valor obrigatório`);
+      if(!p.querySelector('[data-f="data"]').value.trim()) erros.push(`Sinal parcela ${i+1}: data obrigatória`);
+    });
+  }
+
   if(erros.length){
     showModal(`<div class="icon">⚠️</div><h3>Revise os dados</h3><ul class="errlist">${erros.map(e=>'<li>'+e+'</li>').join('')}</ul><button class="btn-primary" onclick="document.getElementById('overlay').classList.remove('show')">Entendi</button>`);
     return;
@@ -498,10 +578,22 @@ document.getElementById('submitBtn').addEventListener('click', async () => {
   const pagamento = {
     valor_total: document.getElementById('valor_total').value.trim(),
     dia_vencimento: String(dv),
-    sinal: on('sinal') ? { valor: document.getElementById('valor_sinal').value.trim(), forma: document.getElementById('sinal_forma').value, parcelas: document.getElementById('sinal_parcelas').value.trim() } : null,
-    parcelamento: on('parcelamento') ? { valor: document.getElementById('valor_parcelamento').value.trim(), qtd: document.getElementById('qtd_parcelas').value.trim(), taxa: document.getElementById('taxa_mensal').value.trim(), parcela_manual: document.getElementById('valor_parcela_manual').value.trim() } : null,
-    parcelamento_incc: on('parcelamento_incc') ? { valor: document.getElementById('valor_parcelamento_incc').value.trim(), qtd: document.getElementById('qtd_parcelas_incc').value.trim(), correcao: '1% a.m. + INCC' } : null,
-    parcelamento_sj70: on('parcelamento_sj70') ? { valor: document.getElementById('valor_parcelamento_sj70').value.trim(), qtd: document.getElementById('qtd_parcelas_sj70').value.trim(), correcao: '1% a.m. + INCC', sem_juros: true, incc_teto_aa: (document.getElementById('teto_incc_sj70').value.trim() || '8,5') } : null,
+    sinal: on('sinal') ? (function(){
+      const forma = document.getElementById('sinal_forma').value;
+      const base = { valor: document.getElementById('valor_sinal').value.trim(), forma: forma };
+      if(forma==='parcelado'){
+        const parcelas = [];
+        sinalParcelasContainer.querySelectorAll('.sub-card').forEach(p => {
+          parcelas.push({ valor: p.querySelector('[data-f="valor"]').value.trim(), data: p.querySelector('[data-f="data"]').value.trim() });
+        });
+        base.parcelas_lista = parcelas;
+        base.qtd_parcelas = String(parcelas.length);
+      }
+      return base;
+    })() : null,
+    parcelamento: on('parcelamento') ? { valor: document.getElementById('valor_parcelamento').value.trim(), qtd: document.getElementById('qtd_parcelas').value.trim(), taxa: document.getElementById('taxa_mensal').value.trim(), parcela_manual: document.getElementById('valor_parcela_manual').value.trim(), bonus_adimplencia: document.getElementById('bonus_adimplencia').checked, bonus_valor: document.getElementById('bonus_adimplencia').checked ? 20000 : 0 } : null,
+    parcelamento_incc: on('parcelamento_incc') ? { valor: document.getElementById('valor_parcelamento_incc').value.trim(), qtd: document.getElementById('qtd_parcelas_incc').value.trim(), correcao: '1% a.m. + INCC', incc_teto_aa: '8,5' } : null,
+    parcelamento_sem_juros: on('parcelamento_sem_juros') ? { valor: document.getElementById('valor_parcelamento_sem_juros').value.trim(), qtd: document.getElementById('qtd_parcelas_sem_juros').value.trim(), sem_juros: true, incc_absorvido_ate_aa: '8,5', excedente_repassado: true } : null,
     baloes: baloes.length ? baloes : null,
     poschave: on('poschave') ? document.getElementById('valor_poschave').value.trim() : null,
     saldo_devedor: on('banco') ? document.getElementById('saldo_devedor').value.trim() : null
