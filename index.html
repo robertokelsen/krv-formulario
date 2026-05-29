@@ -72,8 +72,6 @@
   .btn-primary:disabled{background:var(--line);color:var(--muted);cursor:not-allowed;transform:none;box-shadow:none;}
   .btn-ghost{background:transparent;color:var(--ink);border:1.5px solid var(--line);}
   .btn-ghost:hover{border-color:var(--ink);}
-  .btn-fake{margin-top:12px;background:#fff4e0;color:#9a6700;border:1.5px dashed #d9a441;font-size:13px;padding:8px 16px;border-radius:8px;}
-  .btn-fake:hover{background:#ffe9c2;}
   .btn-add{background:rgba(59,93,58,.1);color:var(--moss-deep);border:1.5px dashed var(--moss);font-size:14px;padding:10px 18px;}
   .btn-add:hover{background:rgba(59,93,58,.18);}
   .btn-sm{padding:7px 14px;font-size:13px;}
@@ -210,7 +208,7 @@
           <div class="pay-chip on" data-comp="sinal">Sinal</div>
           <div class="pay-chip" data-comp="parcelamento">Parcelamento (PRICE)</div>
           <div class="pay-chip" data-comp="parcelamento_incc">Parcelamento (1% + INCC)</div>
-          <div class="pay-chip" data-comp="parcelamento_sj70">Sem juros 70x (1%+INCC, teto 8,5%)</div>
+          <div class="pay-chip" data-comp="parcelamento_sem_juros">Sem juros 70x</div>
           <div class="pay-chip" data-comp="baloes">Balões</div>
           <div class="pay-chip" data-comp="poschave">Pós-chave</div>
           <div class="pay-chip" data-comp="banco">Saldo bancário</div>
@@ -219,12 +217,21 @@
         <!-- SINAL -->
         <div class="pay-section show" id="sec_sinal">
           <div class="sub-grid">
-            <div class="field"><label>Valor do sinal</label><input type="text" id="valor_sinal" placeholder="20.000,00" inputmode="decimal"></div>
+            <div class="field"><label>Valor do sinal <span class="hint">(total)</span></label><input type="text" id="valor_sinal" placeholder="20.000,00" inputmode="decimal"></div>
             <div class="field"><label>Forma <span class="hint">(à vista ou parcelado)</span></label>
               <select id="sinal_forma"><option value="avista">À vista (no ato)</option><option value="parcelado">Parcelado</option></select>
             </div>
-            <div class="field" id="sinal_parc_qtd_wrap" style="display:none;">
-              <label>Em quantas vezes</label><input type="number" id="sinal_parcelas" placeholder="3" min="2" max="12">
+          </div>
+          <!-- sinal parcelado: parcelas individuais (valor + data) -->
+          <div id="sinal_parc_wrap" style="display:none;margin-top:10px;">
+            <div class="hint" style="margin-bottom:6px;">Adicione cada parcela do sinal com valor e data. A 1ª pode ser "no ato".</div>
+            <div id="sinalParcelasContainer"></div>
+            <button type="button" class="btn-add btn-sm" id="addSinalParcela" style="margin-top:8px;">+ Adicionar parcela do sinal</button>
+            <div class="price-result" id="sinalParcResult" style="display:none;margin-top:8px;">
+              <div class="meta">
+                <span>Soma das parcelas: <b id="sinalParcSoma">—</b></span>
+                <span id="sinalParcAviso" class="hint"></span>
+              </div>
             </div>
           </div>
         </div>
@@ -237,6 +244,10 @@
             <div class="field"><label>Taxa mensal (%) <span class="hint" id="taxaHint">conforme empreendimento</span></label><input type="text" id="taxa_mensal" value="1,7" inputmode="decimal"></div>
             <div class="field"><label>Valor da parcela <span class="hint">(auto ou manual)</span></label><input type="text" id="valor_parcela_manual" placeholder="calcular automático" inputmode="decimal"></div>
           </div>
+          <label class="checkrow" style="margin-top:8px;padding:10px 12px;background:#fff8e6;border:1.5px dashed #d9a441;border-radius:8px;cursor:pointer;">
+            <input type="checkbox" id="bonus_adimplencia">
+            <span><b>Bônus adimplência (R$ 20.000)</b> <span class="hint">— abatido do valor do imóvel; perde em caso de atraso</span></span>
+          </label>
           <div class="price-result" id="priceResult" style="display:none;">
             <div>Parcela estimada (PRICE): <span class="pmt" id="pricePmt">—</span></div>
             <div class="meta">
@@ -257,24 +268,23 @@
             <div>Parcela base: <span class="pmt" id="inccPmt">—</span></div>
             <div class="meta">
               <span>Correção: <b>1% a.m. + INCC</b></span>
-              <span class="hint">Correção plena pelo INCC (sem teto de absorção).</span>
+              <span class="hint">INCC absorvido até 8,5% a.a.; acima disso o excedente é repassado.</span>
             </div>
           </div>
         </div>
 
-        <div class="pay-section" id="sec_parcelamento_sj70">
+        <!-- PARCELAMENTO SEM JUROS 70x (INCC absorvido até 8,5% a.a.) -->
+        <div class="pay-section" id="sec_parcelamento_sem_juros">
           <div class="sub-grid">
-            <div class="field"><label>Valor a parcelar (Sem juros)</label><input type="text" id="valor_parcelamento_sj70" placeholder="84.000,00" inputmode="decimal"></div>
-            <div class="field"><label>Nº de parcelas</label><input type="number" id="qtd_parcelas_sj70" placeholder="70" min="1" value="70"></div>
+            <div class="field"><label>Valor a parcelar (sem juros)</label><input type="text" id="valor_parcelamento_sem_juros" placeholder="36.590,50" inputmode="decimal"></div>
+            <div class="field"><label>Nº de parcelas</label><input type="number" id="qtd_parcelas_sem_juros" placeholder="70" min="1" value="70"></div>
           </div>
-          <div class="sub-grid">
-            <div class="field"><label>Teto INCC absorvido (% a.a.)</label><input type="text" id="teto_incc_sj70" placeholder="8,5" value="8,5" inputmode="decimal"></div>
-          </div>
-          <div class="price-result" id="sj70Result" style="display:none;">
-            <div>Parcela: <span class="pmt" id="sj70Pmt">—</span></div>
+          <div class="price-result" id="semJurosResult" style="display:none;">
+            <div>Parcela: <span class="pmt" id="semJurosPmt">—</span></div>
             <div class="meta">
-              <span>Modelo: <b>Sem juros · 1% a.m. + INCC</b></span>
-              <span class="hint">Construtora absorve o INCC até o teto a.a.; só o excedente é repassado.</span>
+              <span>Total: <b id="semJurosTotal">—</b></span>
+              <span><b>Sem juros</b></span>
+              <span class="hint">Construtora absorve o INCC até <b>8,5% a.a.</b> — acima desse teto, apenas a diferença é repassada ao cliente.</span>
             </div>
           </div>
         </div>
